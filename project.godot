@@ -1,0 +1,68 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=4
+
+_global_script_classes=[ {
+"base": "Node",
+"class": "Entity",
+"language": "GDScript",
+"path": "res://src/scripts/network/types/Entity.gd"
+}, {
+"base": "Node",
+"class": "InterpolatedSnapshot",
+"language": "GDScript",
+"path": "res://src/scripts/network/types/InterpolatedSnapshot.gd"
+}, {
+"base": "Reference",
+"class": "NetworkConfig",
+"language": "GDScript",
+"path": "res://src/scripts/network/NetworkConfig.gd"
+}, {
+"base": "Node",
+"class": "Snapshot",
+"language": "GDScript",
+"path": "res://src/scripts/network/types/Snapshot.gd"
+}, {
+"base": "Node",
+"class": "SnapshotInterpolation",
+"language": "GDScript",
+"path": "res://src/scripts/network/SnapshotInterpolation.gd"
+}, {
+"base": "Node",
+"class": "SnapshotSorter",
+"language": "GDScript",
+"path": "res://src/scripts/network/util/SnapshotSorter.gd"
+}, {
+"base": "Node",
+"class": "Vault",
+"language": "GDScript",
+"path": "res://src/scripts/network/Vault.gd"
+} ]
+_global_script_class_icons={
+"Entity": "",
+"InterpolatedSnapshot": "",
+"NetworkConfig": "",
+"Snapshot": "",
+"SnapshotInterpolation": "",
+"SnapshotSorter": "",
+"Vault": ""
+}
+
+[application]
+
+config/name="Network-abstraction"
+config/icon="res://icon.png"
+
+[physics]
+
+common/enable_pause_aware_picking=true
+
+[rendering]
+
+environment/default_environment="res://default_env.tres"
