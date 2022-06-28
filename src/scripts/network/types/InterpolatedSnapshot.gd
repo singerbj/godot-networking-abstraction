@@ -2,13 +2,13 @@ extends Node
 
 class_name InterpolatedSnapshot
 
-var _state : Array = []
-var _percentage : float
-var _older : String
-var _newer : String
+var state : Array = []
+var percentage : float
+var older : String
+var newer : String
 
-func _init(state : Array, percentage : float, older : String, newer : String):
-	_state = state
-	_percentage = percentage
-	_older = older
-	_newer = newer
+func _init(_state : Array, _percentage : float, _older : String, _newer : String):
+	self.state = _state
+	self.percentage = _percentage
+	self.older = _older
+	self.newer = _newer

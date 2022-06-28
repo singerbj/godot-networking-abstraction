@@ -1,18 +1,23 @@
 extends Node
 
-class_name SnapshotInterpolation
+class_name SnapshotInterpolationManager
 
-var vault = Vault.new()
+var vault 
 
-var _interpolation_buffer : int = NetworkConfig.DEFAULT_INTERPOLATION_BUFFER_MS
-var _auto_correct_time_offset : bool = NetworkConfig.DEFAULT_AUTO_CORRECT_TIME_OFFSET
-var _time_offset : int = -1
+var _name : String
+var _network_config
+var _interpolation_buffer
+var _auto_correct_time_offset
 var _whitespace_regex : RegEx
+var _time_offset = -1
 
 var server_time = 0
 
-func _init(server_fps : int, auto_correct_time_offset : bool = NetworkConfig.DEFAULT_AUTO_CORRECT_TIME_OFFSET):
-	_interpolation_buffer = (1000 / server_fps) * NetworkConfig.DEFAULT_INTERPOLATION_BUFFER_MULTIPLIER
+func _init(name : String, network_config : NetworkConfig, auto_correct_time_offset : bool):
+	_name = name
+	_network_config = network_config
+	vault = Vault.new(_network_config)
+	_interpolation_buffer = (1000 / Engine.iterations_per_second) * _network_config.DEFAULT_INTERPOLATION_BUFFER_MULTIPLIER
 	_auto_correct_time_offset = auto_correct_time_offset
 	_whitespace_regex = RegEx.new()
 	_whitespace_regex.compile("\\W+")
@@ -29,20 +34,14 @@ func now() -> int:
 func get_time_offset():
 	return _time_offset
 	
-var _ascii_letters_and_digits = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-func _gen_unique_string(length: int) -> String:
-	var result = ""
-	for i in range(length):
-		result += _ascii_letters_and_digits[randi() % _ascii_letters_and_digits.length()]
-	return result
-	
 func create_new_id() -> String:
-	return _gen_unique_string(6)
+	return Util.gen_unique_string(6)
 
 func create_snapshot(state: Array):
 	return Snapshot.new(create_new_id(), now(), state)
 
 func add_snapshot(snapshot : Snapshot):
+#	print("[%s] Adding snapshot" % _name)
 	var now = now()
 
 	if _time_offset == -1:
@@ -51,23 +50,29 @@ func add_snapshot(snapshot : Snapshot):
 	if _auto_correct_time_offset:
 		var time_offset = now - snapshot.time
 		var time_difference = abs(_time_offset - time_offset)
-		if(time_difference > NetworkConfig.DEFAULT_MAX_TIME_OFFSET_MS):
+		if(time_difference > _network_config.DEFAULT_MAX_TIME_OFFSET_MS):
 			_time_offset = time_offset
+			
+	vault.add(snapshot)
 
-func interpolate(snapshot_a : Snapshot, snapshot_b : Snapshot, time_or_percentage : int, parameters : String) -> InterpolatedSnapshot:
-	var sorted = [snapshot_a, snapshot_b].sort_custom(SnapshotSorter, "sort")
-	var parameters_trimmed = parameters.strip_edges()
-	var params = _whitespace_regex.sub(parameters_trimmed, " ").split(" ")
+func interpolate(snapshot_a : Snapshot, snapshot_b : Snapshot, time_or_percentage : int, parameters : Array) -> InterpolatedSnapshot:
+	var snapshot_array = [snapshot_a, snapshot_b]
+	snapshot_array.sort_custom(SnapshotSorter, "sort")
 	
-	var newer : Snapshot = sorted[0]
-	var older : Snapshot = sorted[1]
+	var newer : Snapshot = snapshot_array[0]
+	var older : Snapshot = snapshot_array[1]
 
 	var t0 : int = newer.time
 	var t1 : int = older.time
 	
 	var zero_percent = time_or_percentage - t1
 	var hundred_percent = t0 - t1
-	var p_percent = time_or_percentage if time_or_percentage <= 1 else zero_percent / hundred_percent
+	var p_percent
+	if hundred_percent == 0:
+		print("Divide by zero in interpolate")
+		p_percent = 0
+	else:
+		p_percent = time_or_percentage if time_or_percentage <= 1 else zero_percent / hundred_percent
 
 	var server_time = lerp(t1, t0, p_percent)
 
@@ -83,8 +88,8 @@ func interpolate(snapshot_a : Snapshot, snapshot_b : Snapshot, time_or_percentag
 				
 		if !e2: return null
 
-		for j in len(params):
-			var param = params[j]
+		for j in len(parameters):
+			var param = parameters[j]
 			var p0 = e1
 			var p1 = e2
 			if "." in param:
@@ -114,8 +119,11 @@ func interpolate(snapshot_a : Snapshot, snapshot_b : Snapshot, time_or_percentag
 	var interpolatedSnapshot : InterpolatedSnapshot = InterpolatedSnapshot.new(temp_snapshot.state, p_percent, newer.id, older.id)
 	return interpolatedSnapshot
 
-func calculate_interpolation(parameters : String) -> InterpolatedSnapshot:
-	var server_time = now() - _time_offset - _interpolation_buffer
+func get_server_time() -> int:
+	return now() - _time_offset - _interpolation_buffer
+
+func calculate_interpolation(parameters : Array) -> InterpolatedSnapshot:
+	var server_time : int = get_server_time()
 	
 	var snapshots = vault.get_surrounding_snapshots(server_time)
 	if snapshots[0] == null || snapshots[1] == null: return null
