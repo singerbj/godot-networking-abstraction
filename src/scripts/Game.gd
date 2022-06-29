@@ -8,10 +8,10 @@ var Player = preload("res://src/scenes/Player.tscn")
 
 func _ready():
 	var args = Array(OS.get_cmdline_args())
-#	if "server" in args:
-	self.start_server(false, 4)
-#	if "client" in args:
-	self.connect_to_server("127.0.0.1")
+	if "server" in args:
+		self.start_server(false, 4)
+	else: #if "client" in args:
+		self.connect_to_server("127.0.0.1")
 	
 func _physics_process(delta):
 	if Input.is_action_just_pressed("exit"):
@@ -45,7 +45,7 @@ func _process_inputs(delta : int, peer_id : int, inputs : Array):
 func _on_request_entities() -> Array:
 	var entities = []
 	for peer_id in players.keys():
-		var entity = PlayerEntity.new(peer_id, players[peer_id].transform)
+		var entity = PlayerEntity.new({ "id": peer_id, "transform": players[peer_id].transform })
 		entities.append(entity)
 	return entities
 	
@@ -93,3 +93,10 @@ func _on_client_side_predict(delta : float, input : NetworkInput):
 	
 func _on_message_received_from_server():
 	pass
+	
+########################################################
+### Required Both Implementation Functions ###########
+########################################################	
+	
+func _on_request_entity_classes() -> Array:
+	return [PlayerEntity]

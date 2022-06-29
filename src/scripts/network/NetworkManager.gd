@@ -8,6 +8,7 @@ var _server_connected : bool = false
 var _local_peer_id : int
 var _physics_process_tick : int = 0
 var _process_tick : int = 0
+var _entity_classes = {}
 
 var _network_config : NetworkConfig = NetworkConfig.new()
 
@@ -30,7 +31,8 @@ var client_required_functions = [
 	"_on_interpolation_parameters_requested",
 	"_on_update_local_entity",
 	"_on_input_data_requested",
-	"_on_client_side_predict"
+	"_on_client_side_predict",
+	"_on_request_entity_classes"
 ]
 
 var server_required_functions = [
@@ -40,7 +42,8 @@ var server_required_functions = [
 	"_on_input_reported",
 #	"_on_message_received_from_client",
 	"_process_inputs",
-	"_on_request_entities"
+	"_on_request_entities",
+	"_on_request_entity_classes"
 ]
 
 func verify_required_functions(functions : Array, error_message : String):
@@ -102,8 +105,9 @@ func _report_input(input : NetworkInput) -> void: # TODO: create a class to repr
 #func _on_reported_input_processed(input_array): # TODO: dont keep sending the client input if it has already been processed
 #	pass
 		
-remote func _on_snapshot_recieved_internal(snapshot : Snapshot):
-	# TODO: deserialize the snapshot here once we are serializing
+remote func _on_snapshot_recieved_internal(_serialized_snapshot : Dictionary):
+	# TODO: deserialize the snapshot properly here once we are serializing
+	var snapshot : Snapshot = Snapshot.new().deserialize(_entity_classes, _serialized_snapshot)
 	client_snapshot_manager.add_snapshot(snapshot)
 	call("_on_snapshot_recieved", snapshot)
 
@@ -181,7 +185,7 @@ func _on_upnp_failure_internal():
 func _on_peer_connected_internal(peer_id):
 	print("Peer connected with id: %s" % peer_id)
 	call("_on_peer_connected", peer_id)
-	if peer_id == 0 && _local_peer_is_server():
+	if peer_id == 0 && _local_peer_is_server(): # TODO: this doesnt work as intended
 		_on_confirm_connection_internal(peer_id)
 	else:	
 		rpc_unreliable_id(peer_id, "_on_confirm_connection_internal", peer_id)
@@ -190,13 +194,14 @@ func _on_peer_disconnected_internal(peer_id):
 	print("Peer disconnected with id: %s" % peer_id)
 	call("_on_peer_disconnected", peer_id)
 	rpc_unreliable("_on_peer_disconnect_reported_internal", peer_id)
-	if _local_peer_is_server():
+	if peer_id == 0 && _local_peer_is_server():
 		_on_peer_disconnect_reported_internal(peer_id)
 	
 func _send_snapshot(snapshot : Snapshot):
-	rpc_unreliable("_on_snapshot_recieved_internal", snapshot)
+	var serialized_snapshot : Dictionary = snapshot.serialize()
+	rpc_unreliable("_on_snapshot_recieved_internal", serialized_snapshot)
 	if _local_peer_is_server():
-		_on_snapshot_recieved_internal(snapshot)
+		_on_snapshot_recieved_internal(serialized_snapshot)
 
 remote func _on_input_reported_internal(input : NetworkInput):
 	var entity_id = get_tree().get_rpc_sender_id()
@@ -227,8 +232,12 @@ func _broadcast_message(message : String, sender : int = 0, chat_mode : String =
 
 func _ready():
 	print("Networking Manager started...")
+	
+	var entity_classes : Array = call("_on_request_entity_classes")
+	for entity_class in entity_classes:
+		_entity_classes[entity_class.get_class_name()] = entity_class
 
-func _local_peer_is_server():
+func _local_peer_is_server(): #TODO: fix this. probably just use a variable to track if its a server and peer
 	return _local_peer_id == 0
 
 func _physics_process(delta):

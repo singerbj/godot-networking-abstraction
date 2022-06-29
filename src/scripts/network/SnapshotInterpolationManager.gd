@@ -129,3 +129,4 @@ func calculate_interpolation(parameters : Array) -> InterpolatedSnapshot:
 	if snapshots[0] == null || snapshots[1] == null: return null
 	
 	return interpolate(snapshots[0],  snapshots[1], server_time, parameters)
+	
