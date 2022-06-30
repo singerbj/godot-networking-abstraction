@@ -34,10 +34,7 @@ func _on_peer_disconnected(peer_id):
 	players[peer_id].queue_free()
 	players.erase(peer_id)
 	
-func _on_input_reported(input : NetworkInput):
-	pass
-	
-func _process_inputs(delta : int, peer_id : int, inputs : Array):
+func _process_inputs(delta : float, peer_id : int, inputs : Array):
 	for input in inputs:
 		if peer_id in players:
 			players[peer_id].move(delta, input)
@@ -69,7 +66,7 @@ func _on_snapshot_recieved(state : Snapshot):
 	pass
 	
 func _on_update_local_entity(delta : float, entity : PlayerEntity):
-	print(entity)
+	players[entity.id].transform = entity.transform
 	
 func _on_input_data_requested() -> Dictionary:
 	var data = {}
@@ -81,6 +78,7 @@ func _on_input_data_requested() -> Dictionary:
 		data["m_left"] = true
 	if Input.is_action_pressed("m_right"):
 		data["m_right"] = true
+		
 	return data
 	
 func	 _on_interpolation_parameters_requested() -> Array:

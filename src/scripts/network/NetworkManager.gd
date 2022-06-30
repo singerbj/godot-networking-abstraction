@@ -3,6 +3,8 @@ extends Node
 class_name NetworkManager
 
 var _network : NetworkedMultiplayerENet = NetworkedMultiplayerENet.new()
+var _is_server : bool = false
+var _is_client : bool = false
 var _client_connected : bool = false
 var _server_connected : bool = false
 var _local_peer_id : int
@@ -39,7 +41,7 @@ var server_required_functions = [
 	"_on_server_creation_error",
 	"_on_peer_connected",
 	"_on_peer_disconnected",
-	"_on_input_reported",
+#	"_on_input_reported",
 #	"_on_message_received_from_client",
 	"_process_inputs",
 	"_on_request_entities",
@@ -58,15 +60,20 @@ func verify_required_functions(functions : Array, error_message : String):
 
 func connect_to_server(ip_address : String):
 	verify_required_functions(client_required_functions, "This game instance cannot be a client - function %s not implemented")
-			
-	print("Starting client...")
-	if _server_connected:
-		_on_client_is_server_internal()
-	else:
-		if ip_address != null:
-			_connect_to_server(ip_address)
+	
+	if _is_client == false:
+		_is_client = true
+				
+		print("Starting client...")
+		if _server_connected:
+			_on_client_is_server_internal()
 		else:
-			push_error("IP Address not specified")
+			if ip_address != null:
+				_connect_to_server(ip_address)
+			else:
+				push_error("IP Address not specified")
+	else:
+		push_error("Cannot start a client if a client is already started.")
 	
 func _connect_to_server(ip_address):
 	print("Client attempting connection to server at: %s:%s" % [ip_address, _network_config.DEFAULT_SERVER_PORT])
@@ -96,11 +103,12 @@ func _on_client_is_server_internal():
 	print("Client is also the server")
 	call("_on_connection_succeeded")
 	
-func _report_input(input : NetworkInput) -> void: # TODO: create a class to represent input
+func _report_input(input : NetworkInput) -> void:
+	var serialized_input = input.serialize()
 	if _local_peer_is_server():
-		_on_input_reported_internal(input)
+		_on_input_reported_internal(serialized_input)
 	else:
-		rpc_unreliable_id(0, "_on_input_reported_internal", input)
+		rpc_unreliable_id(0, "_on_input_reported_internal", serialized_input)
 
 #func _on_reported_input_processed(input_array): # TODO: dont keep sending the client input if it has already been processed
 #	pass
@@ -140,15 +148,20 @@ func start_server(do_upnp : bool, max_players : int):
 		
 	verify_required_functions(server_required_functions, "This game instance cannot be a server - function %s not implemented")
 	
-	if do_upnp:
-		print("Configuring UPNP...")
-		var upnp_manager = UPNPManager.new(_network_config)
-		upnp_manager.connect("upnp_completed_success", self, "_create_server")
-		upnp_manager.connect("upnp_completed_failure", self, "_on_upnp_failure")
-		upnp_manager.upnp_setup(_network_config.DEFAULT_SERVER_PORT, max_players)
+	if _is_client == false && _is_server == false:
+		_is_server = true
+		
+		if do_upnp:
+			print("Configuring UPNP...")
+			var upnp_manager = UPNPManager.new(_network_config)
+			upnp_manager.connect("upnp_completed_success", self, "_create_server")
+			upnp_manager.connect("upnp_completed_failure", self, "_on_upnp_failure")
+			upnp_manager.upnp_setup(_network_config.DEFAULT_SERVER_PORT, max_players)
+		else:
+			print("Skipping UPNP Configuration...")
+			_create_server(_network_config.DEFAULT_SERVER_PORT, max_players)
 	else:
-		print("Skipping UPNP Configuration...")
-		_create_server(_network_config.DEFAULT_SERVER_PORT, max_players)
+		push_error("Cannot start a server if a client or a server is already started.")
 	
 func _create_server(server_port : int, max_players : int):
 	var create_server_result = _network.create_server(server_port, max_players)
@@ -203,10 +216,11 @@ func _send_snapshot(snapshot : Snapshot):
 	if _local_peer_is_server():
 		_on_snapshot_recieved_internal(serialized_snapshot)
 
-remote func _on_input_reported_internal(input : NetworkInput):
+remote func _on_input_reported_internal(serialized_input : Dictionary):
+	var input = NetworkInput.new().deserialize(serialized_input)
 	var entity_id = get_tree().get_rpc_sender_id()
 	server_input_manager.add_input(entity_id, input)
-	call("_on_input_reported", input)
+#	call("_on_input_reported", input)
 
 #func _report_processed_input():
 #	# TODO: send processed input back to players
@@ -237,8 +251,8 @@ func _ready():
 	for entity_class in entity_classes:
 		_entity_classes[entity_class.get_class_name()] = entity_class
 
-func _local_peer_is_server(): #TODO: fix this. probably just use a variable to track if its a server and peer
-	return _local_peer_id == 0
+func _local_peer_is_server():
+	return _is_client && _is_server
 
 func _physics_process(delta):
 	_physics_process_tick += 1
@@ -271,7 +285,7 @@ func _physics_process(delta):
 			print("No snapshot found. Skipping interpolation...")
 		else:
 			for entity in snapshot.state:
-				if entity.id != _local_peer_id:
+				if !_local_peer_is_server():
 					call("_on_update_local_entity", delta, entity)
 					
 		# gather inputs and send them to the server

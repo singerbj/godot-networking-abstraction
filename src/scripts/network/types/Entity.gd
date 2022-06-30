@@ -12,6 +12,6 @@ func _ready():
 	if !has_method("serialize"):
 		push_error("This entity does not have a serialize function")
 	if !has_method("deserialize"):
-		push_error("This entity does not have a edserialize function")
+		push_error("This entity does not have a deserialize function")
 
 
