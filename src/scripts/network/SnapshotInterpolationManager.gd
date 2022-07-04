@@ -37,8 +37,8 @@ func get_time_offset():
 func create_new_id() -> String:
 	return Util.gen_unique_string(6)
 
-func create_snapshot(state: Array):
-	return Snapshot.new(create_new_id(), now(), state)
+func create_snapshot(state: Array, last_processed_input_ids : Dictionary):
+	return Snapshot.new(create_new_id(), now(), state, last_processed_input_ids)
 
 func add_snapshot(snapshot : Snapshot):
 #	print("[%s] Adding snapshot" % _name)
@@ -57,7 +57,7 @@ func add_snapshot(snapshot : Snapshot):
 
 func interpolate(snapshot_a : Snapshot, snapshot_b : Snapshot, time_or_percentage : int, parameters : Array) -> InterpolatedSnapshot:
 	var snapshot_array = [snapshot_a, snapshot_b]
-	snapshot_array.sort_custom(SnapshotSorter, "sort")
+	snapshot_array.sort_custom(Util, "sort_snapshots")
 	
 	var newer : Snapshot = snapshot_array[0]
 	var older : Snapshot = snapshot_array[1]
@@ -128,5 +128,5 @@ func calculate_interpolation(parameters : Array) -> InterpolatedSnapshot:
 	var snapshots = vault.get_surrounding_snapshots(server_time)
 	if snapshots[0] == null || snapshots[1] == null: return null
 	
-	return interpolate(snapshots[0],  snapshots[1], server_time, parameters)
+	return interpolate(snapshots[0], snapshots[1], server_time, parameters)
 	

@@ -10,6 +10,16 @@ static func gen_unique_string(length: int) -> String:
 		result += _ascii_letters_and_digits[randi() % _ascii_letters_and_digits.length()]
 	return result
 
+static func sort_snapshots(a, b):
+	if a.time < b.time:
+		return true
+	return false
+	
+static func sort_network_inputs(a, b):
+	if a.id < b.id:
+		return true
+	return false
+
 #var args = Array(OS.get_cmdline_args())
 #	for arg in args:
 #		var formatted_arg_array = arg.split("=")

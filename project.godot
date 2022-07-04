@@ -55,11 +55,6 @@ _global_script_classes=[ {
 "path": "res://src/scripts/network/SnapshotInterpolationManager.gd"
 }, {
 "base": "Node",
-"class": "SnapshotSorter",
-"language": "GDScript",
-"path": "res://src/scripts/network/util/SnapshotSorter.gd"
-}, {
-"base": "Node",
 "class": "UPNPManager",
 "language": "GDScript",
 "path": "res://src/scripts/network/UPNPManager.gd"
@@ -84,7 +79,6 @@ _global_script_class_icons={
 "PlayerEntity": "",
 "Snapshot": "",
 "SnapshotInterpolationManager": "",
-"SnapshotSorter": "",
 "UPNPManager": "",
 "Util": "",
 "Vault": ""

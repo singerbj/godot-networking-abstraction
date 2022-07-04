@@ -10,7 +10,9 @@ var _server_connected : bool = false
 var _local_peer_id : int
 var _physics_process_tick : int = 0
 var _process_tick : int = 0
-var _entity_classes = {}
+
+var _entity_classes : Dictionary = {}
+var interpolation_parameters : Array = []
 
 var _network_config : NetworkConfig = NetworkConfig.new()
 
@@ -25,6 +27,7 @@ var client_snapshot_manager : SnapshotInterpolationManager = SnapshotInterpolati
 ########################################################
 
 var client_required_functions = [
+	"_on_request_entity_classes",
 	"_on_connection_failed",
 	"_on_connection_succeeded",
 	"_on_confirm_connection",
@@ -34,10 +37,12 @@ var client_required_functions = [
 	"_on_update_local_entity",
 	"_on_input_data_requested",
 	"_on_client_side_predict",
-	"_on_request_entity_classes"
+	"_on_server_reconcile",
+	"_on_request_entities",
 ]
 
 var server_required_functions = [
+	"_on_request_entity_classes",
 	"_on_server_creation_error",
 	"_on_peer_connected",
 	"_on_peer_disconnected",
@@ -45,7 +50,6 @@ var server_required_functions = [
 #	"_on_message_received_from_client",
 	"_process_inputs",
 	"_on_request_entities",
-	"_on_request_entity_classes"
 ]
 
 func verify_required_functions(functions : Array, error_message : String):
@@ -116,7 +120,7 @@ func _report_input(input : NetworkInput) -> void:
 remote func _on_snapshot_recieved_internal(_serialized_snapshot : Dictionary):
 	# TODO: deserialize the snapshot properly here once we are serializing
 	var snapshot : Snapshot = Snapshot.new().deserialize(_entity_classes, _serialized_snapshot)
-	client_snapshot_manager.add_snapshot(snapshot)
+	server_snapshot_manager.add_snapshot(snapshot)
 	call("_on_snapshot_recieved", snapshot)
 
 remote func _on_confirm_connection_internal(peer_id : int):
@@ -198,7 +202,7 @@ func _on_upnp_failure_internal():
 func _on_peer_connected_internal(peer_id):
 	print("Peer connected with id: %s" % peer_id)
 	call("_on_peer_connected", peer_id)
-	if peer_id == 0 && _local_peer_is_server(): # TODO: this doesnt work as intended
+	if !_local_peer_is_server():
 		_on_confirm_connection_internal(peer_id)
 	else:	
 		rpc_unreliable_id(peer_id, "_on_confirm_connection_internal", peer_id)
@@ -207,14 +211,12 @@ func _on_peer_disconnected_internal(peer_id):
 	print("Peer disconnected with id: %s" % peer_id)
 	call("_on_peer_disconnected", peer_id)
 	rpc_unreliable("_on_peer_disconnect_reported_internal", peer_id)
-	if peer_id == 0 && _local_peer_is_server():
+	if _local_peer_is_server():
 		_on_peer_disconnect_reported_internal(peer_id)
 	
 func _send_snapshot(snapshot : Snapshot):
 	var serialized_snapshot : Dictionary = snapshot.serialize()
 	rpc_unreliable("_on_snapshot_recieved_internal", serialized_snapshot)
-	if _local_peer_is_server():
-		_on_snapshot_recieved_internal(serialized_snapshot)
 
 remote func _on_input_reported_internal(serialized_input : Dictionary):
 	var input = NetworkInput.new().deserialize(serialized_input)
@@ -250,6 +252,8 @@ func _ready():
 	var entity_classes : Array = call("_on_request_entity_classes")
 	for entity_class in entity_classes:
 		_entity_classes[entity_class.get_class_name()] = entity_class
+		
+	interpolation_parameters = call("_on_interpolation_parameters_requested")
 
 func _local_peer_is_server():
 	return _is_client && _is_server
@@ -261,46 +265,65 @@ func _physics_process(delta):
 		# process recieved client input # TODO : thread this for each player?
 		for peer_id in server_input_manager.get_ids():
 			# TODO: need to supply more options so I can do raycasts here and stuff
-			call("_process_inputs", delta, peer_id, server_input_manager.get_and_clear_input_buffer(peer_id))
+			var sorted_input_buffer = server_input_manager.get_and_clear_input_buffer(peer_id)
+			if sorted_input_buffer.size() > 0:
+				call("_process_inputs", delta, peer_id, sorted_input_buffer)
+				server_input_manager.set_last_processed_input_id(peer_id, sorted_input_buffer[sorted_input_buffer.size() - 1].id)
 		
 		# send processed input back to client ?????????? TODO: this, later lol
 		
 		# create and save snapshot
-		var entities = call("_on_request_entities")
-		if typeof(entities) == TYPE_ARRAY && (entities.size() == 0 || (entities.size() > 0 && entities[0] is Entity)): # TODO: only do this check once for performance reasons maybe
-			var snapshot = server_snapshot_manager.create_snapshot(entities)
-			server_snapshot_manager.add_snapshot(snapshot)
-			# send snapshot to clients
-			# TODO: serialization of some kind in a neat generic way before sending
-			_send_snapshot(snapshot)
-		else:
-			push_error("_on_request_entities did not return an Array. State not sent to all players")
+		var entities : Array = call("_on_request_entities")
+		var snapshot = server_snapshot_manager.create_snapshot(entities, server_input_manager.get_last_processed_input_ids())
+		server_snapshot_manager.add_snapshot(snapshot)
+		# send snapshot to clients
+		_send_snapshot(snapshot)
 			
 	# Client processing
 	if _client_connected:
 		# server reconcile aka interpolate/extrapolate other entities
-		var interpolation_parameters : Array = call("_on_interpolation_parameters_requested")
-		var snapshot = client_snapshot_manager.calculate_interpolation(interpolation_parameters)
-		if snapshot == null:
+		var interpolated_snapshot = server_snapshot_manager.calculate_interpolation(interpolation_parameters)
+		if interpolated_snapshot == null:
 			print("No snapshot found. Skipping interpolation...")
 		else:
-			for entity in snapshot.state:
-				if !_local_peer_is_server():
+			for entity in interpolated_snapshot.state:
+				if !_local_peer_is_server() && entity.id != _local_peer_id:
 					call("_on_update_local_entity", delta, entity)
 					
 		# gather inputs and send them to the server
 		var input_data : Dictionary = call("_on_input_data_requested")
-		var input : NetworkInput = NetworkInput.new(_physics_process_tick, client_snapshot_manager.get_server_time(), input_data)
+		var input : NetworkInput = NetworkInput.new(_physics_process_tick, server_snapshot_manager.get_server_time(), input_data)
 		client_input_manager.add_input(_local_peer_id, input)
 		_report_input(input)
-		
+
+
 		# client side predict
 		call("_on_client_side_predict", delta, input)
+		if !_local_peer_is_server():
+			var entities : Array = call("_on_request_entities")
+			var snapshot = client_snapshot_manager.create_snapshot(entities, { _local_peer_id: input.id })
+			client_snapshot_manager.add_snapshot(snapshot)
+			
+			var latest_server_snapshot : Snapshot = server_snapshot_manager.vault.get_latest_snapshot()
+#			var closest_client_snapshot = client_snapshot_manager.vault.get_closest_snapshot(latest_server_snapshot.time)
+			var closest_client_snapshot : InterpolatedSnapshot = client_snapshot_manager.calculate_interpolation(interpolation_parameters)
+			if latest_server_snapshot != null && closest_client_snapshot != null && latest_server_snapshot.is_valid():
+				call("_on_server_reconcile", latest_server_snapshot, closest_client_snapshot, client_input_manager.get_input_buffer(_local_peer_id)) # TODO: left off here <================================================
 	
 func _process(delta):
 	_process_tick += 1
 #	# Client processing
 #	if _client_connected:
+#		# gather inputs and send them to the server
+#		var input_data : Dictionary = call("_on_input_data_requested")
+#		var input : NetworkInput = NetworkInput.new(_physics_process_tick, client_snapshot_manager.get_server_time(), input_data)
+#		client_input_manager.add_input(_local_peer_id, input)
+#		_report_input(input)
+#
+#		# client side predict
+#		if !_local_peer_is_server():
+#			call("_on_client_side_predict", delta, input)
+
 	pass
 		
 				
