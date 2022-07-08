@@ -19,7 +19,6 @@ var _network_config : NetworkConfig = NetworkConfig.new()
 var server_input_manager : NetworkInputManager = NetworkInputManager.new(_network_config.DEFAULT_INPUT_BUFFER_MAX_SIZE)
 var client_input_manager : NetworkInputManager = NetworkInputManager.new(_network_config.DEFAULT_INPUT_BUFFER_MAX_SIZE)
 
-
 var server_snapshot_manager : SnapshotInterpolationManager = SnapshotInterpolationManager.new("Server", _network_config, _network_config.DEFAULT_AUTO_CORRECT_TIME_SERVER_OFFSET)
 var client_snapshot_manager : SnapshotInterpolationManager = SnapshotInterpolationManager.new("Client", _network_config, _network_config.DEFAULT_AUTO_CORRECT_TIME_CLIENT_OFFSET)
 
@@ -315,7 +314,7 @@ func _process(delta):
 		var input : NetworkInput = NetworkInput.new(_physics_process_tick, delta, server_snapshot_manager.get_server_time(), input_data)
 		client_input_manager.add_input(_local_peer_id, input)
 		_report_input(input)
-		
+
 		# client side predict
 		call("_on_client_side_predict", delta, input)
 		

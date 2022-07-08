@@ -1,8 +1,8 @@
 extends KinematicBody
 
 var SPEED : float = 10.0
-var GRAVITY : float = -4
-var DEFAULT_JUMP_INERTIA : float = 40.0
+var GRAVITY : float = -9.8
+var DEFAULT_JUMP_INERTIA : float = 200.0
 const SENS_MULTIPLIER : float = 0.03
 const STARTING_HEAD_ANGLE : float = 0.0
 
@@ -43,7 +43,7 @@ func move(input : NetworkInput, local_delta : float):
 	last_transform = transform
 	
 	var move_vector = Vector3.ZERO
-	var jump_inertia = 0
+	var jump = false
 	for button in input["data"].keys():
 		if button == "m_forward":
 			move_vector += -global_transform.basis.z
@@ -54,16 +54,20 @@ func move(input : NetworkInput, local_delta : float):
 		if button == "m_right":
 			move_vector += global_transform.basis.x
 		if button == "jump" && is_on_floor():
-			jump_inertia = DEFAULT_JUMP_INERTIA
+			jump = true
 		
 	move_vector = move_vector.normalized()
 	
 	var desired_velocity: Vector3 = move_vector * SPEED
 	velocity.x = desired_velocity.x
 	velocity.z = desired_velocity.z
-	velocity.y += jump_inertia + GRAVITY
+	if jump:
+		velocity.y = DEFAULT_JUMP_INERTIA
+	else:
+		velocity.y = GRAVITY
 	
 	velocity = velocity * (input.delta / local_delta)
+	
 	
 	velocity = move_and_slide_with_snap(velocity, Vector3(0, -0.3, 0), Vector3.UP, true)
 	
