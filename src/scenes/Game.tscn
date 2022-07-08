@@ -26,3 +26,14 @@ material/0 = SubResource( 3 )
 
 [node name="CollisionShape" type="CollisionShape" parent="StaticBody"]
 shape = SubResource( 2 )
+
+[node name="Panel" type="Panel" parent="."]
+margin_right = 62.0
+margin_bottom = 20.0
+
+[node name="Label" type="Label" parent="."]
+margin_left = 3.0
+margin_top = 3.0
+margin_right = 49.0
+margin_bottom = 17.0
+text = "FPS = 0"

@@ -37,6 +37,8 @@ func _physics_process(delta):
 			$Camera.make_current()
 		
 func _process(delta):
+	$Label.text = "FPS: %s" % str(Engine.get_frames_per_second())
+	
 	if local_peer_id != null && local_peer_id in players:
 		players[local_peer_id].rotate_player(mouse_motion)
 		mouse_motion = Vector2(0, 0)

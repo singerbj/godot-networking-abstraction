@@ -68,7 +68,6 @@ func move(input : NetworkInput, local_delta : float):
 	
 	velocity = velocity * (input.delta / local_delta)
 	
-	
 	velocity = move_and_slide_with_snap(velocity, Vector3(0, -0.3, 0), Vector3.UP, true)
 	
 func update_from_server(transform_from_server : Transform, rotation_from_server : Vector3, head_nod_angle_from_server : float):
