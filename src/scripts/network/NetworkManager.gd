@@ -19,6 +19,7 @@ var _network_config : NetworkConfig = NetworkConfig.new()
 var server_input_manager : NetworkInputManager = NetworkInputManager.new(_network_config.DEFAULT_INPUT_BUFFER_MAX_SIZE)
 var client_input_manager : NetworkInputManager = NetworkInputManager.new(_network_config.DEFAULT_INPUT_BUFFER_MAX_SIZE)
 
+
 var server_snapshot_manager : SnapshotInterpolationManager = SnapshotInterpolationManager.new("Server", _network_config, _network_config.DEFAULT_AUTO_CORRECT_TIME_SERVER_OFFSET)
 var client_snapshot_manager : SnapshotInterpolationManager = SnapshotInterpolationManager.new("Client", _network_config, _network_config.DEFAULT_AUTO_CORRECT_TIME_CLIENT_OFFSET)
 
@@ -144,31 +145,26 @@ remote func _on_message_received_from_server_internal(sender : int, message : St
 ### Server functionality ###############################
 ########################################################
 
-func start_server(do_upnp : bool, max_players : int):
-	if do_upnp == null:
-		do_upnp = _network_config.DEFAULT_DO_PNP
-	if max_players == null:
-		max_players = _network_config.DEFAULT_MAXIMUM_PLAYERS
-		
+func start_server():
 	verify_required_functions(server_required_functions, "This game instance cannot be a server - function %s not implemented")
 	
 	if _is_client == false && _is_server == false:
 		_is_server = true
 		
-		if do_upnp:
+		if _network_config.DEFAULT_DO_PNP:
 			print("Configuring UPNP...")
 			var upnp_manager = UPNPManager.new(_network_config)
 			upnp_manager.connect("upnp_completed_success", self, "_create_server")
 			upnp_manager.connect("upnp_completed_failure", self, "_on_upnp_failure")
-			upnp_manager.upnp_setup(_network_config.DEFAULT_SERVER_PORT, max_players)
+			upnp_manager.upnp_setup(_network_config.DEFAULT_SERVER_PORT, _network_config.DEFAULT_MAXIMUM_CONNECTIONS)
 		else:
 			print("Skipping UPNP Configuration...")
-			_create_server(_network_config.DEFAULT_SERVER_PORT, max_players)
+			_create_server(_network_config.DEFAULT_SERVER_PORT, _network_config.DEFAULT_MAXIMUM_CONNECTIONS)
 	else:
 		push_error("Cannot start a server if a client or a server is already started.")
 	
-func _create_server(server_port : int, max_players : int):
-	var create_server_result = _network.create_server(server_port, max_players)
+func _create_server(server_port : int, max_connections : int):
+	var create_server_result = _network.create_server(server_port, max_connections)
 	if create_server_result == OK:
 		var args = Array(OS.get_cmdline_args()) #TODO: abstract this into a commandline manager
 		for arg in args:
@@ -202,7 +198,7 @@ func _on_upnp_failure_internal():
 func _on_peer_connected_internal(peer_id):
 	print("Peer connected with id: %s" % peer_id)
 	call("_on_peer_connected", peer_id)
-	if !_local_peer_is_server():
+	if _local_peer_is_server():
 		_on_confirm_connection_internal(peer_id)
 	else:	
 		rpc_unreliable_id(peer_id, "_on_confirm_connection_internal", peer_id)
@@ -290,41 +286,38 @@ func _physics_process(delta):
 				if !_local_peer_is_server() && entity.id != _local_peer_id:
 					call("_on_update_local_entity", delta, entity)
 					
-		# gather inputs and send them to the server
-		var input_data : Dictionary = call("_on_input_data_requested")
-		var input : NetworkInput = NetworkInput.new(_physics_process_tick, server_snapshot_manager.get_server_time(), input_data)
-		client_input_manager.add_input(_local_peer_id, input)
-		_report_input(input)
-
-
-		# client side predict
-		call("_on_client_side_predict", delta, input)
+#		# gather inputs and send them to the server
+#		var input_data : Dictionary = call("_on_input_data_requested")
+#		var input : NetworkInput = NetworkInput.new(_physics_process_tick, delta, server_snapshot_manager.get_server_time(), input_data)
+#		client_input_manager.add_input(_local_peer_id, input)
+#		_report_input(input)
+#
+#		# client side predict
+#		call("_on_client_side_predict", delta, input)
+		
 		if !_local_peer_is_server():
 			var entities : Array = call("_on_request_entities")
-			var snapshot = client_snapshot_manager.create_snapshot(entities, { _local_peer_id: input.id })
+			var snapshot = client_snapshot_manager.create_snapshot(entities, {})
 			client_snapshot_manager.add_snapshot(snapshot)
 			
 			var latest_server_snapshot : Snapshot = server_snapshot_manager.vault.get_latest_snapshot()
 #			var closest_client_snapshot = client_snapshot_manager.vault.get_closest_snapshot(latest_server_snapshot.time)
 			var closest_client_snapshot : InterpolatedSnapshot = client_snapshot_manager.calculate_interpolation(interpolation_parameters)
 			if latest_server_snapshot != null && closest_client_snapshot != null && latest_server_snapshot.is_valid():
-				call("_on_server_reconcile", latest_server_snapshot, closest_client_snapshot, client_input_manager.get_input_buffer(_local_peer_id)) # TODO: left off here <================================================
+				call("_on_server_reconcile", delta, latest_server_snapshot, closest_client_snapshot, client_input_manager.get_input_buffer(_local_peer_id)) # TODO: left off here <================================================
 	
 func _process(delta):
 	_process_tick += 1
-#	# Client processing
-#	if _client_connected:
-#		# gather inputs and send them to the server
-#		var input_data : Dictionary = call("_on_input_data_requested")
-#		var input : NetworkInput = NetworkInput.new(_physics_process_tick, client_snapshot_manager.get_server_time(), input_data)
-#		client_input_manager.add_input(_local_peer_id, input)
-#		_report_input(input)
-#
-#		# client side predict
-#		if !_local_peer_is_server():
-#			call("_on_client_side_predict", delta, input)
-
-	pass
+	# Client processing
+	if _client_connected:
+		# gather inputs and send them to the server
+		var input_data : Dictionary = call("_on_input_data_requested")
+		var input : NetworkInput = NetworkInput.new(_physics_process_tick, delta, server_snapshot_manager.get_server_time(), input_data)
+		client_input_manager.add_input(_local_peer_id, input)
+		_report_input(input)
+		
+		# client side predict
+		call("_on_client_side_predict", delta, input)
 		
 				
 		

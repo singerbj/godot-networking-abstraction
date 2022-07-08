@@ -25,13 +25,13 @@ func get_ids() -> Array:
 func get_input_buffer(peer_id : int) -> Array:
 	if !peer_id in _input_buffers:
 		_input_buffers[peer_id] = []
-	_input_buffers[peer_id].sort_custom(Util, "sort_network_inputs")
+	_input_buffers[peer_id].sort_custom(NetworkUtil, "sort_network_inputs")
 	return _input_buffers[peer_id]
 	
 func get_and_clear_input_buffer(peer_id : int) -> Array:
 	if !peer_id in _input_buffers:
 		_input_buffers[peer_id] = []
-	_input_buffers[peer_id].sort_custom(Util, "sort_network_inputs")
+	_input_buffers[peer_id].sort_custom(NetworkUtil, "sort_network_inputs")
 	var input_buffer_copy = [] + _input_buffers[peer_id]
 	_input_buffers[peer_id] = []
 	return input_buffer_copy

@@ -1,7 +1,6 @@
 extends Node
 
-
-class_name Util
+class_name NetworkUtil
 
 static func gen_unique_string(length: int) -> String:
 	var _ascii_letters_and_digits = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"

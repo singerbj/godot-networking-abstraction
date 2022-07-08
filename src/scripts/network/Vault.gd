@@ -28,7 +28,7 @@ func get_latest_snapshot() -> Snapshot:
 		return _vault[_vault.size() - 1]
 
 func get_surrounding_snapshots(time : int) -> Array:
-	_vault.sort_custom(Util, "sort_snapshots")
+	_vault.sort_custom(NetworkUtil, "sort_snapshots")
 		
 	for i in len(_vault):
 		var snapshot = _vault[_vault.size() - 1 - i]
@@ -37,7 +37,7 @@ func get_surrounding_snapshots(time : int) -> Array:
 	return [null, null]
 
 func get_closest_snapshot(time: int) -> Snapshot:
-	_vault.sort_custom(Util, "sort_snapshots")
+	_vault.sort_custom(NetworkUtil, "sort_snapshots")
 	for i in len(_vault):
 		var before_snapshot = null
 		if i > 0:
@@ -55,7 +55,7 @@ func get_closest_snapshot(time: int) -> Snapshot:
 
 func add(snapshot : Snapshot) -> void:
 	_vault.append(snapshot)
-	_vault.sort_custom(Util, "sort_snapshots")
+	_vault.sort_custom(NetworkUtil, "sort_snapshots")
 	if _vault.size() > _vault_size:
 		_vault.pop_front()
 
