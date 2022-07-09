@@ -49,6 +49,7 @@ var server_required_functions = [
 #	"_on_input_reported",
 #	"_on_message_received_from_client",
 	"_process_inputs",
+	"_process_no_inputs",
 	"_on_request_entities",
 ]
 
@@ -264,6 +265,8 @@ func _physics_process(delta):
 			if sorted_input_buffer.size() > 0:
 				call("_process_inputs", delta, peer_id, sorted_input_buffer)
 				server_input_manager.set_last_processed_input_id(peer_id, sorted_input_buffer[sorted_input_buffer.size() - 1].id)
+			else:
+				call("_process_no_inputs", delta, peer_id)
 		
 		# send processed input back to client ?????????? TODO: this, later lol
 		
@@ -311,12 +314,16 @@ func _process(delta):
 	if _client_connected:
 		# gather inputs and send them to the server
 		var input_data : Dictionary = call("_on_input_data_requested")
-		var input : NetworkInput = NetworkInput.new(_physics_process_tick, delta, server_snapshot_manager.get_server_time(), input_data)
-		client_input_manager.add_input(_local_peer_id, input)
-		_report_input(input)
+		if input_data.keys().size() > 0:
+			var input : NetworkInput = NetworkInput.new(_physics_process_tick, delta, server_snapshot_manager.get_server_time(), input_data)
+			client_input_manager.add_input(_local_peer_id, input)
+			_report_input(input)
 
-		# client side predict
-		call("_on_client_side_predict", delta, input)
+			# client side predict
+			call("_on_client_side_predict", delta, input)
+		else:
+			# client side predict with no input
+			call("_on_client_side_predict", delta, null)
 		
 				
 		

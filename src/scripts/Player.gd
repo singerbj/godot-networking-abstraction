@@ -70,6 +70,26 @@ func move(input : NetworkInput, local_delta : float):
 	
 	velocity = move_and_slide_with_snap(velocity, Vector3(0, -0.3, 0), Vector3.UP, true)
 	
+func move_without_input(local_delta : float):
+	last_transform = transform
+	
+	var move_vector = Vector3.ZERO
+	var jump = false
+		
+	move_vector = move_vector.normalized()
+	
+	var desired_velocity: Vector3 = move_vector * SPEED
+	velocity.x = desired_velocity.x
+	velocity.z = desired_velocity.z
+	if jump:
+		velocity.y = DEFAULT_JUMP_INERTIA
+	else:
+		velocity.y = GRAVITY
+	
+	velocity = velocity * (local_delta / local_delta)
+	
+	velocity = move_and_slide_with_snap(velocity, Vector3(0, -0.3, 0), Vector3.UP, true)
+	
 func update_from_server(transform_from_server : Transform, rotation_from_server : Vector3, head_nod_angle_from_server : float):
 	transform = transform_from_server
 	rotation = rotation_from_server

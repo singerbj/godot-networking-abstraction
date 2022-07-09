@@ -29,4 +29,3 @@ func serialize():
 
 func deserialize(serialized_snapshot : Dictionary):
 	return get_script().new(serialized_snapshot["id"], serialized_snapshot["delta"], serialized_snapshot["time"], serialized_snapshot["data"])
-	

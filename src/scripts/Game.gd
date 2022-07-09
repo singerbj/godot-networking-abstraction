@@ -11,8 +11,8 @@ func _ready():
 	var start_server = "server" in args
 	var start_client = "client" in args
 	if !start_server && !start_client:
-		start_server = false
-		start_client = true
+		start_server = true
+		start_client = false
 
 	if start_server:
 		OS.set_window_title("Server")
@@ -75,8 +75,13 @@ func _on_peer_disconnected(peer_id):
 func _process_inputs(delta : float, peer_id : int, inputs : Array):
 	for input in inputs:
 		if (peer_id in players) && ((!_local_peer_is_server()) || (_local_peer_is_server() && peer_id != local_peer_id)):
-			players[peer_id].rotate_player(input["data"]["mouse_motion"])
+			if "mouse_motion" in input["data"]:
+				players[peer_id].rotate_player(input["data"]["mouse_motion"])
 			players[peer_id].move(input, delta)
+
+func _process_no_inputs(delta : float, peer_id : int):
+	if (peer_id in players) && ((!_local_peer_is_server()) || (_local_peer_is_server() && peer_id != local_peer_id)):
+		players[peer_id].move_without_input(delta)
 	
 ########################################################
 ### Required Client Implementation Functions ###########
@@ -107,9 +112,9 @@ func _on_update_local_entity(delta : float, entity : PlayerEntity):
 		players[entity.id].update_from_server(entity.transform, entity.rotation, entity.head_nod_angle)
 	
 func _on_input_data_requested() -> Dictionary:
-	var data = {
-		"mouse_motion": mouse_motion_for_server	
-	}
+	var data = {}
+	if mouse_motion_for_server != Vector2.ZERO:
+		data["mouse_motion"] = mouse_motion_for_server
 	if Input.is_action_pressed("m_forward"):
 		data["m_forward"] = true
 	if Input.is_action_pressed("m_backward"):
@@ -132,9 +137,12 @@ func	 _on_interpolation_parameters_requested() -> Array:
 		"head_nod_angle"
 	]
 	
-func _on_client_side_predict(delta : float, input : NetworkInput):
+func _on_client_side_predict(delta : float, input : NetworkInput = null):
 	if local_peer_id in players:
-		players[local_peer_id].move(input, delta)
+		if input != null:
+			players[local_peer_id].move(input, delta)
+		else:
+			players[local_peer_id].move_without_input(delta)
 	
 func _on_server_reconcile(delta : float, latest_server_snapshot : Snapshot, closest_client_snaphot : InterpolatedSnapshot, input_buffer : Array):
 	var server_entity
@@ -152,9 +160,10 @@ func _on_server_reconcile(delta : float, latest_server_snapshot : Snapshot, clos
 	if server_entity != null && client_entity != null:
 		# calculate the offset between server and client
 		var offset_x = abs(players[local_peer_id].transform.origin.x - server_entity.transform.origin.x)
+		var offset_y = abs(players[local_peer_id].transform.origin.y - server_entity.transform.origin.y)
 		var offset_z = abs(players[local_peer_id].transform.origin.z - server_entity.transform.origin.z)
 
-		if offset_x > 1 || offset_z > 1:
+		if offset_x > 1 || offset_y > 1|| offset_z > 1:
 			players[local_peer_id].transform = server_entity.transform
 			players[local_peer_id].velocity = server_entity.velocity
 			players[local_peer_id].rotation = server_entity.rotation
