@@ -4,7 +4,10 @@ var local_peer_id : int
 var players = {}
 var Player = preload("res://src/scenes/Player.tscn")
 var mouse_motion : Vector2 = Vector2(0, 0)
-var mouse_motion_for_server : Vector2 = Vector2(0, 0)
+var reconciliations : int = 0
+
+const RECONCILIATION_TOLERANCE : float = 3.0
+const RECONCILIATION_FACTOR : float = 0.125
 
 func _ready():
 	var args = Array(OS.get_cmdline_args())
@@ -37,16 +40,15 @@ func _physics_process(delta):
 			$Camera.make_current()
 		
 func _process(delta):
-	$Label.text = "FPS: %s" % str(Engine.get_frames_per_second())
+	$Label.text = "[FPS: %s] [Reconciliations: %s]" % [str(Engine.get_frames_per_second()), reconciliations]
 	
 	if local_peer_id != null && local_peer_id in players:
-		players[local_peer_id].rotate_player(mouse_motion)
+		players[local_peer_id].rotate_player_with_input(mouse_motion)
 		mouse_motion = Vector2(0, 0)
 		
 func _input(event) -> void:
 	if event is InputEventMouseMotion:
 		mouse_motion += event.relative
-		mouse_motion_for_server += event.relative
 		
 func _unhandled_input(event):
 	if Input.is_action_just_pressed("change_mouse_mode"):
@@ -75,7 +77,8 @@ func _on_peer_disconnected(peer_id):
 func _process_inputs(delta : float, peer_id : int, inputs : Array):
 	for input in inputs:
 		if (peer_id in players) && ((!_local_peer_is_server()) || (_local_peer_is_server() && peer_id != local_peer_id)):
-			players[peer_id].rotate_player(input["data"]["mouse_motion"])
+			if "rotation" in input["data"] && "head_nod_angle" in input["data"]:
+				players[peer_id].rotate_player_with_values(input["data"]["rotation"], input["data"]["head_nod_angle"])
 			players[peer_id].move(input, delta)
 	
 ########################################################
@@ -107,9 +110,12 @@ func _on_update_local_entity(delta : float, entity : PlayerEntity):
 		players[entity.id].update_from_server(entity.transform, entity.rotation, entity.head_nod_angle)
 	
 func _on_input_data_requested() -> Dictionary:
-	var data = {
-		"mouse_motion": mouse_motion_for_server	
-	}
+	var data = {}
+	
+	if local_peer_id != null && local_peer_id in players:
+		data["rotation"] = players[local_peer_id].rotation_degrees.y
+		data["head_nod_angle"] = players[local_peer_id].head_nod_angle
+		
 	if Input.is_action_pressed("m_forward"):
 		data["m_forward"] = true
 	if Input.is_action_pressed("m_backward"):
@@ -120,8 +126,6 @@ func _on_input_data_requested() -> Dictionary:
 		data["m_right"] = true
 	if Input.is_action_pressed("jump"):
 		data["jump"] = true
-		
-	mouse_motion_for_server = Vector2(0, 0)
 		
 	return data
 	
@@ -135,7 +139,7 @@ func	 _on_interpolation_parameters_requested() -> Array:
 func _on_client_side_predict(delta : float, input : NetworkInput):
 	if local_peer_id in players:
 		players[local_peer_id].move(input, delta)
-	
+
 func _on_server_reconcile(delta : float, latest_server_snapshot : Snapshot, closest_client_snaphot : InterpolatedSnapshot, input_buffer : Array):
 	var server_entity
 	for entity in latest_server_snapshot.state:
@@ -152,18 +156,12 @@ func _on_server_reconcile(delta : float, latest_server_snapshot : Snapshot, clos
 	if server_entity != null && client_entity != null:
 		# calculate the offset between server and client
 		var offset_x = abs(players[local_peer_id].transform.origin.x - server_entity.transform.origin.x)
+		var offset_y = abs(players[local_peer_id].transform.origin.y - server_entity.transform.origin.y)
 		var offset_z = abs(players[local_peer_id].transform.origin.z - server_entity.transform.origin.z)
 
-		if offset_x > 1 || offset_z > 1:
-			players[local_peer_id].transform = server_entity.transform
-			players[local_peer_id].velocity = server_entity.velocity
-			players[local_peer_id].rotation = server_entity.rotation
-			players[local_peer_id].head_nod_angle = server_entity.head_nod_angle
-			var last_input_index = -1
-			for i in len(input_buffer):
-				var input = input_buffer[i]
-				if input.id > latest_server_snapshot.last_processed_input_ids[local_peer_id]:
-					players[local_peer_id].move(input, delta)
+		if offset_x > RECONCILIATION_TOLERANCE || offset_y > RECONCILIATION_TOLERANCE || offset_z > RECONCILIATION_TOLERANCE:
+			reconciliations += 1
+			players[local_peer_id].transform.origin =  players[local_peer_id].transform.origin.linear_interpolate(server_entity.transform.origin, RECONCILIATION_FACTOR)
 	
 func _on_message_received_from_server():
 	pass

@@ -27,7 +27,7 @@ func _enter_tree():
 	last_rotation = rotation
 	last_head_nod_angle = head_nod_angle
 
-func rotate_player(mouse_motion : Vector2):
+func rotate_player_with_input(mouse_motion : Vector2):
 	last_rotation = rotation
 	last_head_nod_angle = head_nod_angle
 	
@@ -38,6 +38,15 @@ func rotate_player(mouse_motion : Vector2):
 	head_nod_angle = clamp(head_nod_angle, STARTING_HEAD_ANGLE - 80, STARTING_HEAD_ANGLE + 80)
 	if $Camera != null:
 		$Camera.rotation_degrees.x = head_nod_angle
+		
+func rotate_player_with_values(rotation_degrees_from_server : float, head_nod_angle_from_server : float):
+	last_rotation = rotation
+	last_head_nod_angle = head_nod_angle
+	
+	rotation_degrees.y = rotation_degrees_from_server
+	head_nod_angle = head_nod_angle_from_server
+	if $Camera != null:
+		$Camera.rotation_degrees.x = head_nod_angle_from_server
 
 func move(input : NetworkInput, local_delta : float):
 	last_transform = transform
