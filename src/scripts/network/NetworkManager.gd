@@ -197,7 +197,7 @@ func _on_upnp_failure_internal():
 func _on_peer_connected_internal(peer_id):
 	print("Peer connected with id: %s" % peer_id)
 	call("_on_peer_connected", peer_id)
-	if _local_peer_is_server():
+	if peer_id == 0 && _local_peer_is_server():
 		_on_confirm_connection_internal(peer_id)
 	else:	
 		rpc_unreliable_id(peer_id, "_on_confirm_connection_internal", peer_id)

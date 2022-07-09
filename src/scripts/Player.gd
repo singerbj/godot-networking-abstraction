@@ -1,14 +1,13 @@
 extends KinematicBody
 
-var SPEED : float = 10.0
+var SPEED : float = 8.0
 var GRAVITY : float = -9.8
 var DEFAULT_JUMP_INERTIA : float = 200.0
 const SENS_MULTIPLIER : float = 0.03
 const STARTING_HEAD_ANGLE : float = 0.0
 
+var is_local_player : bool = false
 var head_nod_angle : float = STARTING_HEAD_ANGLE
-
-var server_side = false
 var velocity = Vector3.ZERO
 
 var last_transform : Transform
@@ -18,14 +17,13 @@ var current_transform : Transform
 var current_rotation : Vector3
 var current_head_nod_angle : float
 
-func _ready():
-#	$Camera.set_physics_interpolation_mode(Node.PHYSICS_INTERPOLATION_MODE_OFF) # TODO : figure this out...
-	pass
-
 func _enter_tree():
 	last_transform = transform
 	last_rotation = rotation
 	last_head_nod_angle = head_nod_angle
+	
+	if is_local_player:
+		set_physics_interpolation_mode(Node.PHYSICS_INTERPOLATION_MODE_OFF)
 
 func rotate_player_with_input(mouse_motion : Vector2):
 	last_rotation = rotation

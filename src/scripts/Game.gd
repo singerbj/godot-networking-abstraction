@@ -14,8 +14,8 @@ func _ready():
 	var start_server = "server" in args
 	var start_client = "client" in args
 	if !start_server && !start_client:
-		start_server = false
-		start_client = true
+		start_server = true
+		start_client = false
 
 	if start_server:
 		OS.set_window_title("Server")
@@ -94,6 +94,7 @@ func _on_connection_succeeded():
 func _on_confirm_connection(peer_id : int):
 	local_peer_id = peer_id
 	var local_player = Player.instance()
+	local_player.is_local_player = true
 	players[local_peer_id] = local_player
 	add_child(local_player)
 	local_player.set_camera_active()
