@@ -14,15 +14,15 @@ func _ready():
 	var start_server = "server" in args
 	var start_client = "client" in args
 	if !start_server && !start_client:
-		start_server = true
-		start_client = false
+		start_server = false
+		start_client = true
 
 	if start_server:
 		OS.set_window_title("Server")
 		self.start_server()
 	if start_client:
 		OS.set_window_title("Client")
-		self.connect_to_server("127.0.0.1")
+		self.connect_to_server(NetworkUtil.get_cmd_line_ipaddress())
 	if start_server && start_client:
 		OS.set_window_title("Server and Client")
 	

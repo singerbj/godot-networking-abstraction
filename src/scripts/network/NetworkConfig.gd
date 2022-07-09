@@ -3,7 +3,7 @@ class_name NetworkConfig
 # Network
 var DEFAULT_SERVER_PORT : int = 56969
 var DEFAULT_MAXIMUM_CONNECTIONS : int = 4
-var DEFAULT_DO_PNP : bool = false
+var DEFAULT_DO_PNP : bool = true
 
 # Vault
 var DEFAULT_VAULT_SIZE : int = 40
