@@ -6,6 +6,8 @@ var Player = preload("res://src/scenes/Player.tscn")
 var mouse_motion : Vector2 = Vector2(0, 0)
 var mouse_motion_for_server : Vector2 = Vector2(0, 0)
 
+const RECONCILIATION_TOLERANCE : float = 2.0
+
 func _ready():
 	var args = Array(OS.get_cmdline_args())
 	var start_server = "server" in args
@@ -154,16 +156,46 @@ func _on_server_reconcile(delta : float, latest_server_snapshot : Snapshot, clos
 		var offset_x = abs(players[local_peer_id].transform.origin.x - server_entity.transform.origin.x)
 		var offset_z = abs(players[local_peer_id].transform.origin.z - server_entity.transform.origin.z)
 
-		if offset_x > 1 || offset_z > 1:
-			players[local_peer_id].transform = server_entity.transform
-			players[local_peer_id].velocity = server_entity.velocity
-			players[local_peer_id].rotation = server_entity.rotation
-			players[local_peer_id].head_nod_angle = server_entity.head_nod_angle
-			var last_input_index = -1
-			for i in len(input_buffer):
-				var input = input_buffer[i]
-				if input.id > latest_server_snapshot.last_processed_input_ids[local_peer_id]:
-					players[local_peer_id].move(input, delta)
+#		if offset_x > RECONCILIATION_TOLERANCE || offset_z > RECONCILIATION_TOLERANCE:
+#			players[local_peer_id].transform = server_entity.transform
+#			players[local_peer_id].velocity = server_entity.velocity
+#			players[local_peer_id].rotation = server_entity.rotation
+#			players[local_peer_id].head_nod_angle = server_entity.head_nod_angle
+#			var i = input_buffer.size() - 1
+#			var processing_inputs = false
+#			var last_input_index = -1
+#			while !processing_inputs || i < input_buffer.size():
+#				print("i = %s" % i)
+#				var input = input_buffer[i]
+#				if !processing_inputs:
+#					if input.id == latest_server_snapshot.last_processed_input_ids[local_peer_id]:
+#						processing_inputs = true
+#						i += 1
+#					else:
+#						i -= 1
+#				else:
+#					players[local_peer_id].move(input, delta)
+#					i += 1
+#			print("===========================")
+
+#		if offset_x > RECONCILIATION_TOLERANCE || offset_z > RECONCILIATION_TOLERANCE:
+#			players[local_peer_id].transform = server_entity.transform
+#			players[local_peer_id].velocity = server_entity.velocity
+#			players[local_peer_id].rotation = server_entity.rotation
+#			players[local_peer_id].head_nod_angle = server_entity.head_nod_angle
+#			var last_input_index = -1
+#			for i in len(input_buffer):
+#				var input = input_buffer[i]
+#				if input.id > latest_server_snapshot.last_processed_input_ids[local_peer_id]:
+#					players[local_peer_id].move(input, delta)
+
+		if offset_x > RECONCILIATION_TOLERANCE || offset_z > RECONCILIATION_TOLERANCE:
+			print("Reconciling")
+			players[local_peer_id].transform = players[local_peer_id].transform.interpolate_with(server_entity.transform, 0.5)
+			players[local_peer_id].velocity = players[local_peer_id].velocity.linear_interpolate(server_entity.velocity, 0.5)
+			players[local_peer_id].rotation = players[local_peer_id].rotation.linear_interpolate(server_entity.rotation, 0.5)
+			players[local_peer_id].head_nod_angle = lerp(players[local_peer_id].head_nod_angle, server_entity.head_nod_angle, 0.5)
+			
 	
 func _on_message_received_from_server():
 	pass
