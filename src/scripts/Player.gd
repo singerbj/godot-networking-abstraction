@@ -1,8 +1,10 @@
 extends KinematicBody
 
-var SPEED : float = 8.0
-var GRAVITY : float = -9.8
-var DEFAULT_JUMP_INERTIA : float = 200.0
+const is_player : bool = true;
+
+const SPEED : float = 8.0
+const GRAVITY : float = -9.8
+const DEFAULT_JUMP_INERTIA : float = 200.0
 const SENS_MULTIPLIER : float = 0.03
 const STARTING_HEAD_ANGLE : float = 0.0
 
@@ -83,6 +85,9 @@ func update_from_server(transform_from_server : Transform, rotation_from_server 
 	head_nod_angle = head_nod_angle_from_server
 	if $Camera != null:
 		$Camera.rotation_degrees.x = head_nod_angle_from_server
+
+func get_camera() -> Node:
+	return $Camera
 
 func set_camera_active():
 	if $Camera != null:

@@ -55,7 +55,7 @@ func add_snapshot(snapshot : Snapshot):
 			
 	vault.add(snapshot)
 
-func interpolate(snapshot_a : Snapshot, snapshot_b : Snapshot, time_or_percentage : int, parameters : Array) -> InterpolatedSnapshot:
+func interpolate(snapshot_a : Snapshot, snapshot_b : Snapshot, time_or_percentage : int, entity_classes : Array) -> InterpolatedSnapshot:
 	var snapshot_array = [snapshot_a, snapshot_b]
 	snapshot_array.sort_custom(NetworkUtil, "sort_snapshots")
 	
@@ -87,6 +87,12 @@ func interpolate(snapshot_a : Snapshot, snapshot_b : Snapshot, time_or_percentag
 				break
 				
 		if !e2: return null
+		
+		var parameters : Array = []
+		for entity_class in entity_classes:
+			if e1 is entity_class:
+				parameters = entity_class.interpolation_parameters
+				break
 
 		for j in len(parameters):
 			var param = parameters[j]
@@ -122,11 +128,11 @@ func interpolate(snapshot_a : Snapshot, snapshot_b : Snapshot, time_or_percentag
 func get_server_time() -> int:
 	return now() - _time_offset - _interpolation_buffer
 
-func calculate_interpolation(parameters : Array) -> InterpolatedSnapshot:
+func calculate_interpolation(entity_classes : Array) -> InterpolatedSnapshot:
 	var server_time : int = get_server_time()
 	
 	var snapshots = vault.get_surrounding_snapshots(server_time)
 	if snapshots[0] == null || snapshots[1] == null: return null
 	
-	return interpolate(snapshots[0], snapshots[1], server_time, parameters)
+	return interpolate(snapshots[0], snapshots[1], server_time, entity_classes)
 	

@@ -2,6 +2,12 @@ extends Entity
 
 class_name PlayerEntity
 
+const interpolation_parameters = [
+	"transform.origin.x", "transform.origin.y", "transform.origin.z",
+	"rotation.x", "rotation.y", "rotation.z",
+	"head_nod_angle"
+]
+
 var transform : Transform
 var velocity : Vector3
 var rotation : Vector3

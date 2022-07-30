@@ -12,7 +12,6 @@ var _physics_process_tick : int = 0
 var _process_tick : int = 0
 
 var _entity_classes : Dictionary = {}
-var interpolation_parameters : Array = []
 
 var _network_config : NetworkConfig = NetworkConfig.new()
 
@@ -33,12 +32,12 @@ var client_required_functions = [
 	"_on_confirm_connection",
 	"_on_snapshot_recieved",
 	"_on_message_received_from_server",
-	"_on_interpolation_parameters_requested",
 	"_on_update_local_entity",
 	"_on_input_data_requested",
 	"_on_client_side_predict",
 	"_on_server_reconcile",
 	"_on_request_entities",
+	"_on_peer_disconnect_reported"
 ]
 
 var server_required_functions = [
@@ -48,7 +47,9 @@ var server_required_functions = [
 	"_on_peer_disconnected",
 #	"_on_input_reported",
 #	"_on_message_received_from_client",
+	"_before_process_inputs",
 	"_process_inputs",
+	"_after_process_inputs",
 	"_on_request_entities",
 ]
 
@@ -205,9 +206,8 @@ func _on_peer_connected_internal(peer_id):
 func _on_peer_disconnected_internal(peer_id):
 	print("Peer disconnected with id: %s" % peer_id)
 	call("_on_peer_disconnected", peer_id)
-	rpc_unreliable("_on_peer_disconnect_reported_internal", peer_id)
-	if _local_peer_is_server():
-		_on_peer_disconnect_reported_internal(peer_id)
+	rpc("_on_peer_disconnect_reported_internal", peer_id)
+		
 	
 func _send_snapshot(snapshot : Snapshot):
 	var serialized_snapshot : Dictionary = snapshot.serialize()
@@ -247,8 +247,6 @@ func _ready():
 	var entity_classes : Array = call("_on_request_entity_classes")
 	for entity_class in entity_classes:
 		_entity_classes[entity_class.get_class_name()] = entity_class
-		
-	interpolation_parameters = call("_on_interpolation_parameters_requested")
 
 func _local_peer_is_server():
 	return _is_client && _is_server
@@ -257,13 +255,17 @@ func _physics_process(delta):
 	_physics_process_tick += 1
 	# Server processing
 	if _server_connected:
-		# process recieved client input # TODO : thread this for each player?
+		# do things before we process inputs
+		call("_before_process_inputs")
+		# process recieved client input # TODO : thread this for each player? thread in different ways?
 		for peer_id in server_input_manager.get_ids():
 			# TODO: need to supply more options so I can do raycasts here and stuff
 			var sorted_input_buffer = server_input_manager.get_and_clear_input_buffer(peer_id)
 			if sorted_input_buffer.size() > 0:
 				call("_process_inputs", delta, peer_id, sorted_input_buffer)
 				server_input_manager.set_last_processed_input_id(peer_id, sorted_input_buffer[sorted_input_buffer.size() - 1].id)
+		# do things after we process inputs
+		call("_after_process_inputs")
 		
 		# send processed input back to client ?????????? TODO: this, later lol
 		
@@ -277,7 +279,7 @@ func _physics_process(delta):
 	# Client processing
 	if _client_connected:
 		# server reconcile aka interpolate/extrapolate other entities
-		var interpolated_snapshot = server_snapshot_manager.calculate_interpolation(interpolation_parameters)
+		var interpolated_snapshot = server_snapshot_manager.calculate_interpolation(_entity_classes.values())
 		if interpolated_snapshot == null:
 			print("No snapshot found. Skipping interpolation...")
 		else:
@@ -301,7 +303,7 @@ func _physics_process(delta):
 			
 			var latest_server_snapshot : Snapshot = server_snapshot_manager.vault.get_latest_snapshot()
 #			var closest_client_snapshot = client_snapshot_manager.vault.get_closest_snapshot(latest_server_snapshot.time)
-			var closest_client_snapshot : InterpolatedSnapshot = client_snapshot_manager.calculate_interpolation(interpolation_parameters)
+			var closest_client_snapshot : InterpolatedSnapshot = client_snapshot_manager.calculate_interpolation(_entity_classes.values())
 			if latest_server_snapshot != null && closest_client_snapshot != null && latest_server_snapshot.is_valid():
 				call("_on_server_reconcile", delta, latest_server_snapshot, closest_client_snapshot, client_input_manager.get_input_buffer(_local_peer_id)) # TODO: left off here <================================================
 	

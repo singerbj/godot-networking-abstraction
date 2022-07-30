@@ -47,7 +47,7 @@ func _process(delta):
 		mouse_motion = Vector2(0, 0)
 		
 func _input(event) -> void:
-	if event is InputEventMouseMotion:
+	if Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED && event is InputEventMouseMotion:
 		mouse_motion += event.relative
 		
 func _unhandled_input(event):
@@ -71,15 +71,32 @@ func _on_peer_connected(peer_id : int):
 		add_child(peer_player)
 	
 func _on_peer_disconnected(peer_id):
-	players[peer_id].queue_free()
-	players.erase(peer_id)
+	if peer_id in players:
+		players[peer_id].queue_free()
+		players.erase(peer_id)
+		
+func _before_process_inputs():
+	ShotManager.clear_shots()
 	
 func _process_inputs(delta : float, peer_id : int, inputs : Array):
 	for input in inputs:
-		if (peer_id in players) && ((!_local_peer_is_server()) || (_local_peer_is_server() && peer_id != local_peer_id)):
-			if "rotation" in input["data"] && "head_nod_angle" in input["data"]:
-				players[peer_id].rotate_player_with_values(input["data"]["rotation"], input["data"]["head_nod_angle"])
-			players[peer_id].move(input, delta)
+		if peer_id in players:
+			if !_local_peer_is_server() || (_local_peer_is_server() && peer_id != local_peer_id):
+				if "rotation" in input["data"] && "head_nod_angle" in input["data"]:
+					players[peer_id].rotate_player_with_values(input["data"]["rotation"], input["data"]["head_nod_angle"])
+				players[peer_id].move(input, delta)
+				
+			if "shooting" in input["data"]:
+				var new_shot = ShotEntity.new({
+					"peer_id": peer_id, 
+					"time": input["time"],
+					"origin": input["data"]["shooting_origin"],
+					"normal": input["data"]["shooting_normal"]
+				})
+				ShotManager.fire_server_shot(new_shot, [players[peer_id]])
+				
+func _after_process_inputs():
+	pass
 	
 ########################################################
 ### Required Client Implementation Functions ###########
@@ -102,18 +119,28 @@ func _on_confirm_connection(peer_id : int):
 func _on_snapshot_recieved(state : Snapshot):
 	pass
 	
-func _on_update_local_entity(delta : float, entity : PlayerEntity):
-	if local_peer_id != null:
-		if !entity.id in players:
-			var peer_player = Player.instance()
-			players[entity.id] = peer_player
-			add_child(peer_player)
-		players[entity.id].update_from_server(entity.transform, entity.rotation, entity.head_nod_angle)
+func _on_update_local_entity(delta : float, entity : Entity):
+	if entity is PlayerEntity:
+		if local_peer_id != null:
+			if !entity.id in players:
+				var peer_player = Player.instance()
+				players[entity.id] = peer_player
+				add_child(peer_player)
+			players[entity.id].update_from_server(entity.transform, entity.rotation, entity.head_nod_angle)
+	elif entity is ShotEntity:
+		if entity.peer_id != local_peer_id:
+			ShotManager.fire_client_shot(entity, true)
+	
+func _on_peer_disconnect_reported	(peer_id):
+	if peer_id in players:
+		players[peer_id].queue_free()
+		players.erase(peer_id)
 	
 func _on_input_data_requested() -> Dictionary:
 	var data = {}
 	
 	if local_peer_id != null && local_peer_id in players:
+		data["player_id"] = local_peer_id
 		data["rotation"] = players[local_peer_id].rotation_degrees.y
 		data["head_nod_angle"] = players[local_peer_id].head_nod_angle
 		
@@ -127,16 +154,29 @@ func _on_input_data_requested() -> Dictionary:
 		data["m_right"] = true
 	if Input.is_action_pressed("jump"):
 		data["jump"] = true
+	if Input.is_action_pressed("shoot"):
+		data["shooting"] = true
+		var player_camera = players[local_peer_id].get_camera()
+		var shooting_origin = player_camera.project_ray_origin(Vector2(get_viewport().size.x / 2, get_viewport().size.y / 2))
+		var shooting_normal = player_camera.project_ray_normal(Vector2(get_viewport().size.x / 2, get_viewport().size.y / 2))
+		data["shooting_origin"] = shooting_origin
+		data["shooting_normal"] = shooting_normal
+		$ShootLabel.text = "Shooting!"
+		$ShootDataLabel.text = str(shooting_origin) + "\n" + str(shooting_normal)
+		
+		if !_local_peer_is_server():
+			var new_shot = ShotEntity.new({
+				"peer_id": local_peer_id, 
+				"time": 0, # not relevant for the local simulation of the shot
+				"origin": data["shooting_origin"],
+				"normal": data["shooting_normal"]
+			})
+			ShotManager.fire_client_shot(new_shot)
+	else:
+		$ShootLabel.text = ""
 		
 	return data
-	
-func	 _on_interpolation_parameters_requested() -> Array:
-	return [
-		"transform.origin.x", "transform.origin.y", "transform.origin.z",
-		"rotation.x", "rotation.y", "rotation.z",
-		"head_nod_angle"
-	]
-	
+		
 func _on_client_side_predict(delta : float, input : NetworkInput):
 	if local_peer_id in players:
 		players[local_peer_id].move(input, delta)
@@ -172,17 +212,21 @@ func _on_message_received_from_server():
 ########################################################	
 	
 func _on_request_entity_classes() -> Array:
-	return [PlayerEntity]
+	return [PlayerEntity, ShotEntity]
 	
 func _on_request_entities() -> Array:
 	var entities = []
 	for peer_id in players.keys():
-		var entity = PlayerEntity.new({ 
+		var player_entity = PlayerEntity.new({ 
 			"id": peer_id, 
 			"transform": players[peer_id].transform, 
 			"velocity": players[peer_id].velocity, 
 			"rotation": players[peer_id].rotation,
 			"head_nod_angle": players[peer_id].head_nod_angle 
 		})
-		entities.append(entity)
+		entities.append(player_entity)
+		
+	for shot_entity in ShotManager.get_client_shots():
+		entities.append(shot_entity)
+		
 	return entities

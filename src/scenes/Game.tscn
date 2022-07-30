@@ -37,12 +37,33 @@ shape = SubResource( 2 )
 margin_right = 1024.0
 margin_bottom = 20.0
 
+[node name="Panel2" type="Panel" parent="."]
+margin_left = 793.0
+margin_top = 20.0
+margin_right = 1024.0
+margin_bottom = 71.0
+
 [node name="Label" type="Label" parent="."]
 margin_left = 3.0
 margin_top = 3.0
 margin_right = 49.0
 margin_bottom = 17.0
 text = "[FPS: %s] [Reconciliations: %s]\""
+
+[node name="ShootLabel" type="Label" parent="."]
+margin_left = 823.0
+margin_top = 3.0
+margin_right = 1022.0
+margin_bottom = 17.0
+align = 2
+
+[node name="ShootDataLabel" type="Label" parent="."]
+margin_left = 794.0
+margin_top = 19.0
+margin_right = 1023.0
+margin_bottom = 68.0
+valign = 1
+clip_text = true
 
 [node name="StaticBody2" type="StaticBody" parent="."]
 transform = Transform( 0.866025, 0, 0.5, 0, 1, 0, -0.5, 0, 0.866025, -11, 1, -7 )

@@ -13,5 +13,16 @@ func _ready():
 		push_error("This entity does not have a serialize function")
 	if !has_method("deserialize"):
 		push_error("This entity does not have a deserialize function")
-
+	if !"interpolation_parameters" in self:
+		push_error("This entity does not have interpolation_parameters variable")
+	elif typeof(self.interpolation_parameters) != TYPE_ARRAY:
+		push_error("This entity's interpolation_parameters variable is not an Array")
+		
+func get_interpolation_parameters() -> Array:
+	if "interpolation_parameters" in self:
+		return self.interpolation_parameters
+	else:
+		return []
+		
+		
 
