@@ -14,7 +14,7 @@ func _ready():
 	var start_server = "server" in args
 	var start_client = "client" in args
 	if !start_server && !start_client:
-		start_server = false
+		start_server = true
 		start_client = true
 
 	if start_server:
@@ -110,7 +110,6 @@ func _process_inputs(delta : float, peer_id : int, inputs : Array):
 				if interpolated_snapshot:
 					for peer_id in players:
 						if peer_id != new_shot.peer_id:
-							print(original_values[peer_id].transform.origin," - ", interpolated_snapshot.state[peer_id].transform.origin)
 							players[peer_id].transform = original_values[peer_id].transform
 				
 				
