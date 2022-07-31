@@ -1,5 +1,6 @@
 extends Spatial
 
+var shot_id_counter : int = 0
 onready var client_shots : Array = []
 onready var server_shots : Array = []
 var shot_starting_distance = 2
@@ -76,7 +77,7 @@ func fire_server_shot(shot : ShotEntity, exclude : Array = []) -> ShotEntity:
 		else:
 			continue_casting = false
 		
-	var color = Color(0, 0, 0.5)
+	var color : Color = Color(0, 0, 0.5)
 	if all_results.size() > 0:
 		color = Color(0.5, 0, 0)
 		to = all_results[0].position
@@ -96,9 +97,9 @@ func fire_server_shot(shot : ShotEntity, exclude : Array = []) -> ShotEntity:
 func fire_client_shot(shot : ShotEntity, server_debug : bool = false):
 	server_shots.append(shot)
 	
-	var from = shot.origin + shot.normal * shot_starting_distance
-	var to = shot.origin + shot.normal * ray_length
-	var color = shot.color
+	var from : Vector3 = shot.origin + shot.normal * shot_starting_distance
+	var to : Vector3 = shot.origin + shot.normal * ray_length
+	var color : Color = shot.color
 	if server_debug:
 		color = Color.aqua
 	
@@ -106,6 +107,11 @@ func fire_client_shot(shot : ShotEntity, server_debug : bool = false):
 	
 func _render_shot(from : Vector3, to : Vector3, color : Color):
 	DrawLine3d.draw_line_3d(from, to, color)
+	
+func get_new_shot_id() -> int:
+	shot_id_counter += 1
+	return shot_id_counter
+	
 	
 
 				

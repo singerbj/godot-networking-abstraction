@@ -88,12 +88,31 @@ func _process_inputs(delta : float, peer_id : int, inputs : Array):
 				
 			if "shooting" in input["data"]:
 				var new_shot = ShotEntity.new({
+					"id": "s" + str(ShotManager.get_new_shot_id()),
 					"peer_id": peer_id, 
 					"time": input["time"],
 					"origin": input["data"]["shooting_origin"],
 					"normal": input["data"]["shooting_normal"]
 				})
+				
+				var interpolated_snapshot : InterpolatedSnapshot = _get_interpolated_server_state(new_shot.time)
+				
+				# Update the server state of all entities here for entity interpolation
+				var original_values = players.duplicate()
+				if interpolated_snapshot:
+					for peer_id in players:
+						if peer_id != new_shot.peer_id:
+							players[peer_id].transform = interpolated_snapshot.state[peer_id].transform
+		
 				ShotManager.fire_server_shot(new_shot, [players[peer_id]])
+				
+				# Reset server state to what it was before entity interpolation
+				if interpolated_snapshot:
+					for peer_id in players:
+						if peer_id != new_shot.peer_id:
+							print(original_values[peer_id].transform.origin," - ", interpolated_snapshot.state[peer_id].transform.origin)
+							players[peer_id].transform = original_values[peer_id].transform
+				
 				
 func _after_process_inputs():
 	pass
@@ -166,6 +185,7 @@ func _on_input_data_requested() -> Dictionary:
 		
 		if !_local_peer_is_server():
 			var new_shot = ShotEntity.new({
+				"id": "s" + str(ShotManager.get_new_shot_id()),
 				"peer_id": local_peer_id, 
 				"time": 0, # not relevant for the local simulation of the shot
 				"origin": data["shooting_origin"],
@@ -182,17 +202,12 @@ func _on_client_side_predict(delta : float, input : NetworkInput):
 		players[local_peer_id].move(input, delta)
 
 func _on_server_reconcile(delta : float, latest_server_snapshot : Snapshot, closest_client_snaphot : InterpolatedSnapshot, input_buffer : Array):
-	var server_entity
-	for entity in latest_server_snapshot.state:
-		if entity.id == local_peer_id:
-			server_entity = entity
-			break
-
-	var client_entity
-	for entity in closest_client_snaphot.state:
-		if entity.id == local_peer_id:
-			client_entity = entity
-			break
+	var server_entity : Entity
+	var client_entity : Entity
+	if local_peer_id in latest_server_snapshot.state:
+		server_entity = latest_server_snapshot.state[local_peer_id]
+	if local_peer_id in closest_client_snaphot.state:
+		client_entity = closest_client_snaphot.state[local_peer_id]
 			
 	if server_entity != null && client_entity != null:
 		# calculate the offset between server and client
@@ -214,8 +229,8 @@ func _on_message_received_from_server():
 func _on_request_entity_classes() -> Array:
 	return [PlayerEntity, ShotEntity]
 	
-func _on_request_entities() -> Array:
-	var entities = []
+func _on_request_entities() -> Dictionary:
+	var entities = {}
 	for peer_id in players.keys():
 		var player_entity = PlayerEntity.new({ 
 			"id": peer_id, 
@@ -224,9 +239,9 @@ func _on_request_entities() -> Array:
 			"rotation": players[peer_id].rotation,
 			"head_nod_angle": players[peer_id].head_nod_angle 
 		})
-		entities.append(player_entity)
+		entities[player_entity.id] = player_entity
 		
 	for shot_entity in ShotManager.get_client_shots():
-		entities.append(shot_entity)
+		entities[shot_entity.id] = shot_entity
 		
 	return entities

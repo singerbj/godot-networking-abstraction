@@ -2,8 +2,8 @@ extends Node2D
 
 class_name LineDrawer
 
-var DEFAULT_THICKNESS = 4.0
-var LINE_SHRINK_AMOUNT = 10
+var DEFAULT_THICKNESS : float = 4.0
+var LINE_SHRINK_AMOUNT : int = 10
 
 class Line:
 	var color
@@ -40,7 +40,7 @@ func _process(delta):
 
 	update()
 
-func draw_line_3d(start, end, color, thickness = DEFAULT_THICKNESS, time = OS.get_system_time_msecs()):
+func draw_line_3d(start : Vector3, end : Vector3, color : Color, thickness : float = DEFAULT_THICKNESS, time : int = OS.get_system_time_msecs()):
 	var new_line = Line.new()
 	new_line.color = color
 	new_line.start = start

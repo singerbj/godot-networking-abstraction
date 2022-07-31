@@ -21,6 +21,9 @@ var client_input_manager : NetworkInputManager = NetworkInputManager.new(_networ
 var server_snapshot_manager : SnapshotInterpolationManager = SnapshotInterpolationManager.new("Server", _network_config, _network_config.DEFAULT_AUTO_CORRECT_TIME_SERVER_OFFSET)
 var client_snapshot_manager : SnapshotInterpolationManager = SnapshotInterpolationManager.new("Client", _network_config, _network_config.DEFAULT_AUTO_CORRECT_TIME_CLIENT_OFFSET)
 
+var current_server_state : Snapshot
+var current_client_state : Snapshot
+
 ########################################################
 ### Implementation verification ########################
 ########################################################
@@ -236,6 +239,19 @@ func _broadcast_message(message : String, sender : int = 0, chat_mode : String =
 	rpc("_on_message_received_from_server_internal", sender, message, chat_mode, message_color, sender_color)
 	if _local_peer_is_server():
 		_on_message_received_from_server_internal(sender, message, chat_mode, message_color, sender_color)
+
+####################################################
+### Exposed interpolation functionality #######################
+####################################################
+	
+func _get_interpolated_server_state(time : int) -> InterpolatedSnapshot:
+	return _interpolate_state(time, server_snapshot_manager)
+	
+func _get_interpolated_client_state(time : int) -> InterpolatedSnapshot:
+	return _interpolate_state(time, client_snapshot_manager)
+	
+func _interpolate_state(time : int, manager : SnapshotInterpolationManager) -> InterpolatedSnapshot:
+	return manager.calculate_interpolation_with_time(_entity_classes, time)
 	
 ####################################################
 ### Processing functionality #######################
@@ -270,7 +286,7 @@ func _physics_process(delta):
 		# send processed input back to client ?????????? TODO: this, later lol
 		
 		# create and save snapshot
-		var entities : Array = call("_on_request_entities")
+		var entities : Dictionary = call("_on_request_entities")
 		var snapshot = server_snapshot_manager.create_snapshot(entities, server_input_manager.get_last_processed_input_ids())
 		server_snapshot_manager.add_snapshot(snapshot)
 		# send snapshot to clients
@@ -279,11 +295,11 @@ func _physics_process(delta):
 	# Client processing
 	if _client_connected:
 		# server reconcile aka interpolate/extrapolate other entities
-		var interpolated_snapshot = server_snapshot_manager.calculate_interpolation(_entity_classes.values())
+		var interpolated_snapshot = server_snapshot_manager.calculate_interpolation(_entity_classes)
 		if interpolated_snapshot == null:
 			print("No snapshot found. Skipping interpolation...")
 		else:
-			for entity in interpolated_snapshot.state:
+			for entity in interpolated_snapshot.state.values():
 				if !_local_peer_is_server() && entity.id != _local_peer_id:
 					call("_on_update_local_entity", delta, entity)
 					
@@ -297,13 +313,12 @@ func _physics_process(delta):
 #		call("_on_client_side_predict", delta, input)
 		
 		if !_local_peer_is_server():
-			var entities : Array = call("_on_request_entities")
+			var entities : Dictionary = call("_on_request_entities")
 			var snapshot = client_snapshot_manager.create_snapshot(entities, {})
 			client_snapshot_manager.add_snapshot(snapshot)
 			
 			var latest_server_snapshot : Snapshot = server_snapshot_manager.vault.get_latest_snapshot()
-#			var closest_client_snapshot = client_snapshot_manager.vault.get_closest_snapshot(latest_server_snapshot.time)
-			var closest_client_snapshot : InterpolatedSnapshot = client_snapshot_manager.calculate_interpolation(_entity_classes.values())
+			var closest_client_snapshot : InterpolatedSnapshot = client_snapshot_manager.calculate_interpolation(_entity_classes)
 			if latest_server_snapshot != null && closest_client_snapshot != null && latest_server_snapshot.is_valid():
 				call("_on_server_reconcile", delta, latest_server_snapshot, closest_client_snapshot, client_input_manager.get_input_buffer(_local_peer_id)) # TODO: left off here <================================================
 	

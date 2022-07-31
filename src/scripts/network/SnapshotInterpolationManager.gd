@@ -37,7 +37,7 @@ func get_time_offset():
 func create_new_id() -> String:
 	return NetworkUtil.gen_unique_string(6)
 
-func create_snapshot(state: Array, last_processed_input_ids : Dictionary):
+func create_snapshot(state : Dictionary, last_processed_input_ids : Dictionary):
 	return Snapshot.new(create_new_id(), now(), state, last_processed_input_ids)
 
 func add_snapshot(snapshot : Snapshot):
@@ -55,7 +55,7 @@ func add_snapshot(snapshot : Snapshot):
 			
 	vault.add(snapshot)
 
-func interpolate(snapshot_a : Snapshot, snapshot_b : Snapshot, time_or_percentage : int, entity_classes : Array) -> InterpolatedSnapshot:
+func interpolate(snapshot_a : Snapshot, snapshot_b : Snapshot, time : int, entity_classes : Dictionary) -> InterpolatedSnapshot:
 	var snapshot_array = [snapshot_a, snapshot_b]
 	snapshot_array.sort_custom(NetworkUtil, "sort_snapshots")
 	
@@ -65,31 +65,34 @@ func interpolate(snapshot_a : Snapshot, snapshot_b : Snapshot, time_or_percentag
 	var t0 : int = newer.time
 	var t1 : int = older.time
 	
-	var zero_percent = time_or_percentage - t1
+	var zero_percent = time - t1
 	var hundred_percent = t0 - t1
 	var p_percent
 	if hundred_percent == 0:
 		print("Divide by zero in interpolate")
 		p_percent = 0
 	else:
-		p_percent = time_or_percentage if time_or_percentage <= 1 else zero_percent / hundred_percent
+		p_percent = time if time <= 1 else zero_percent / hundred_percent
 
 	var server_time = lerp(t1, t0, p_percent)
 
 	var temp_snapshot: Snapshot = newer
 
-	for i in len(newer.state):
-		var e1 = newer.state[i]
+	for i in len(newer.state.values()):
+		var e1 : Entity = newer.state.values()[i]
 		var e2 : Entity
-		for temp_e in older.state:
+		
+		for temp_e in older.state.values():
 			if e1.id == temp_e.id:
 				e2 = temp_e
 				break
 				
 		if !e2: return null
+		# Dont interpolate things with the same id that are not the same type of entity
+		if e1.get_class_name() != e2.get_class_name(): return null	
 		
 		var parameters : Array = []
-		for entity_class in entity_classes:
+		for entity_class in entity_classes.values():
 			if e1 is entity_class:
 				parameters = entity_class.interpolation_parameters
 				break
@@ -109,7 +112,7 @@ func interpolate(snapshot_a : Snapshot, snapshot_b : Snapshot, time_or_percentag
 
 			var pn = lerp(p1, p0, p_percent)
 			
-			var new_state_to_update = temp_snapshot.state[i]
+			var new_state_to_update = temp_snapshot.state.values()[i]
 			if "." in param:
 				var sub_param_array = param.split(".")
 				var temp_attr_ref = new_state_to_update		
@@ -128,11 +131,14 @@ func interpolate(snapshot_a : Snapshot, snapshot_b : Snapshot, time_or_percentag
 func get_server_time() -> int:
 	return now() - _time_offset - _interpolation_buffer
 
-func calculate_interpolation(entity_classes : Array) -> InterpolatedSnapshot:
-	var server_time : int = get_server_time()
+func calculate_interpolation(entity_classes : Dictionary) -> InterpolatedSnapshot:
+	return calculate_interpolation_with_time(entity_classes, get_server_time())
 	
-	var snapshots = vault.get_surrounding_snapshots(server_time)
-	if snapshots[0] == null || snapshots[1] == null: return null
+func calculate_interpolation_with_time(entity_classes : Dictionary, time : int) -> InterpolatedSnapshot:
+	var snapshots = vault.get_surrounding_snapshots(time)
+	if snapshots[0] == null || snapshots[1] == null: 
+		push_error("Either a before or after snapshot could not be found for interpolation")
+		return null
 	
-	return interpolate(snapshots[0], snapshots[1], server_time, entity_classes)
+	return interpolate(snapshots[0], snapshots[1], time, entity_classes)
 	

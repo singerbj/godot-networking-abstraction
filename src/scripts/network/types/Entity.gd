@@ -2,7 +2,7 @@ extends Node
 
 class_name Entity
 
-var id : int
+var id # TODO: right now can be any type of value - maybe that's ok? maybe its not?
 
 func _ready():
 	if !has_method("get_class_name"):
