@@ -14,7 +14,7 @@ func _ready():
 	var start_server = "server" in args
 	var start_client = "client" in args
 	if !start_server && !start_client: # TODO: put these in a config file that is in gitignore?
-		start_server = true
+		start_server = false
 		start_client = true
 
 	if start_server:
@@ -40,7 +40,7 @@ func _physics_process(delta):
 			$Camera.make_current()
 		
 func _process(delta):
-	$Label.text = "[FPS: %s] [Reconciliations: %s]" % [str(Engine.get_frames_per_second()), reconciliations]
+	$UI/Label.text = "[FPS: %s] [Reconciliations: %s]" % [str(Engine.get_frames_per_second()), reconciliations]
 	
 	if local_peer_id != null && local_peer_id in players:
 		players[local_peer_id].rotate_player_with_input(mouse_motion)
@@ -104,7 +104,10 @@ func _process_inputs(delta : float, peer_id : int, inputs : Array):
 						if peer_id != new_shot.peer_id:
 							players[peer_id].transform = interpolated_snapshot.state[peer_id].transform
 		
-				ShotManager.fire_server_shot(new_shot, [players[peer_id]])
+				new_shot = ShotManager.fire_server_shot(new_shot, [players[peer_id]])
+				
+				if new_shot.peer_id == local_peer_id && new_shot.hit:
+					$UI.show_hitmarker()
 				
 				# Reset server state to what it was before entity interpolation
 				if interpolated_snapshot:
@@ -134,8 +137,11 @@ func _on_confirm_connection(peer_id : int):
 	add_child(local_player)
 	local_player.set_camera_active()
 	
-func _on_snapshot_recieved(state : Snapshot):
-	pass
+func _on_snapshot_recieved(snapshot : Snapshot):
+	for entity in snapshot.state.values():
+		if entity is ShotEntity:
+			if entity.peer_id == local_peer_id && entity.hit:
+				$UI.show_hitmarker()
 	
 func _on_update_local_entity(delta : float, entity : Entity):
 	if entity is PlayerEntity:
@@ -145,9 +151,9 @@ func _on_update_local_entity(delta : float, entity : Entity):
 				players[entity.id] = peer_player
 				add_child(peer_player)
 			players[entity.id].update_from_server(entity.transform, entity.rotation, entity.head_nod_angle)
-	elif entity is ShotEntity:
-		if entity.peer_id != local_peer_id:
-			ShotManager.fire_client_shot(entity, true)
+	if entity is ShotEntity:
+			if entity.peer_id != local_peer_id:
+				ShotManager.fire_client_shot(entity, true)
 	
 func _on_peer_disconnect_reported	(peer_id):
 	if peer_id in players:
@@ -179,8 +185,8 @@ func _on_input_data_requested() -> Dictionary:
 		var shooting_normal = player_camera.project_ray_normal(Vector2(get_viewport().size.x / 2, get_viewport().size.y / 2))
 		data["shooting_origin"] = shooting_origin
 		data["shooting_normal"] = shooting_normal
-		$ShootLabel.text = "Shooting!"
-		$ShootDataLabel.text = str(shooting_origin) + "\n" + str(shooting_normal)
+		$UI/ShootLabel.text = "Shooting!"
+#		$UI/ShootDataLabel.text = str(shooting_origin) + "\n" + str(shooting_normal)
 		
 		if !_local_peer_is_server():
 			var new_shot = ShotEntity.new({
@@ -192,7 +198,7 @@ func _on_input_data_requested() -> Dictionary:
 			})
 			ShotManager.fire_client_shot(new_shot)
 	else:
-		$ShootLabel.text = ""
+		$UI/ShootLabel.text = ""
 		
 	return data
 		
@@ -240,7 +246,7 @@ func _on_request_entities() -> Dictionary:
 		})
 		entities[player_entity.id] = player_entity
 		
-	for shot_entity in ShotManager.get_client_shots():
+	for shot_entity in ShotManager.get_server_shots():
 		entities[shot_entity.id] = shot_entity
 		
 	return entities

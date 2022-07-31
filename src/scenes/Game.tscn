@@ -1,8 +1,11 @@
-[gd_scene load_steps=9 format=2]
+[gd_scene load_steps=12 format=2]
 
 [ext_resource path="res://src/scripts/Game.gd" type="Script" id=1]
 [ext_resource path="res://src/materials/green.tres" type="Material" id=2]
 [ext_resource path="res://src/materials/blue.tres" type="Material" id=3]
+[ext_resource path="res://images/hitmarker.png" type="Texture" id=4]
+[ext_resource path="res://images/crosshair.png" type="Texture" id=5]
+[ext_resource path="res://src/scripts/UI.gd" type="Script" id=6]
 
 [sub_resource type="CubeMesh" id=1]
 size = Vector3( 40, 0.1, 40 )
@@ -33,37 +36,58 @@ material/0 = SubResource( 3 )
 [node name="CollisionShape" type="CollisionShape" parent="StaticBody"]
 shape = SubResource( 2 )
 
-[node name="Panel" type="Panel" parent="."]
+[node name="UI" type="Control" parent="."]
+script = ExtResource( 6 )
+
+[node name="Panel" type="Panel" parent="UI"]
 margin_right = 1024.0
 margin_bottom = 20.0
 
-[node name="Panel2" type="Panel" parent="."]
+[node name="UNUSEDPanel2" type="Panel" parent="UI"]
+visible = false
 margin_left = 793.0
 margin_top = 20.0
 margin_right = 1024.0
 margin_bottom = 71.0
 
-[node name="Label" type="Label" parent="."]
+[node name="Label" type="Label" parent="UI"]
 margin_left = 3.0
 margin_top = 3.0
-margin_right = 49.0
+margin_right = 202.0
 margin_bottom = 17.0
 text = "[FPS: %s] [Reconciliations: %s]\""
 
-[node name="ShootLabel" type="Label" parent="."]
+[node name="ShootLabel" type="Label" parent="UI"]
 margin_left = 823.0
 margin_top = 3.0
 margin_right = 1022.0
 margin_bottom = 17.0
 align = 2
 
-[node name="ShootDataLabel" type="Label" parent="."]
+[node name="UNUSEDShootDataLabel" type="Label" parent="UI"]
+visible = false
 margin_left = 794.0
 margin_top = 19.0
 margin_right = 1023.0
 margin_bottom = 68.0
 valign = 1
 clip_text = true
+
+[node name="Hitmarker" type="TextureRect" parent="UI"]
+margin_left = 498.0
+margin_top = 269.0
+margin_right = 518.0
+margin_bottom = 289.0
+texture = ExtResource( 4 )
+expand = true
+
+[node name="Crosshair" type="TextureRect" parent="UI"]
+margin_left = 506.0
+margin_top = 277.0
+margin_right = 510.0
+margin_bottom = 281.0
+texture = ExtResource( 5 )
+expand = true
 
 [node name="StaticBody2" type="StaticBody" parent="."]
 transform = Transform( 0.866025, 0, 0.5, 0, 1, 0, -0.5, 0, 0.866025, -11, 1, -7 )

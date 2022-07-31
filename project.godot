@@ -100,7 +100,6 @@ _global_script_class_icons={
 
 config/name="Network-abstraction"
 run/main_scene="res://src/scenes/Game.tscn"
-config/icon="res://icon.png"
 
 [autoload]
 

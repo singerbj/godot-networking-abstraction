@@ -16,6 +16,10 @@ func _init(attributes : Dictionary):
 	self.time = attributes.time
 	self.origin = attributes.origin
 	self.normal = attributes.normal
+	if "hit" in attributes:
+		self.hit = attributes.hit
+	if "color" in attributes:
+		self.color = attributes.color
 
 static func get_class_name():
 	return "ShotEntity"

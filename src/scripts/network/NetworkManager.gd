@@ -50,9 +50,7 @@ var server_required_functions = [
 	"_on_peer_disconnected",
 #	"_on_input_reported",
 #	"_on_message_received_from_client",
-	"_before_process_inputs",
 	"_process_inputs",
-	"_after_process_inputs",
 	"_on_request_entities",
 ]
 
@@ -272,7 +270,8 @@ func _physics_process(delta):
 	# Server processing
 	if _server_connected:
 		# do things before we process inputs
-		call("_before_process_inputs")
+		if self.has_method("_before_process_inputs"):
+			call("_before_process_inputs")
 		# process recieved client input # TODO : thread this for each player? thread in different ways?
 		for peer_id in server_input_manager.get_ids():
 			# TODO: need to supply more options so I can do raycasts here and stuff
@@ -281,7 +280,8 @@ func _physics_process(delta):
 				call("_process_inputs", delta, peer_id, sorted_input_buffer)
 				server_input_manager.set_last_processed_input_id(peer_id, sorted_input_buffer[sorted_input_buffer.size() - 1].id)
 		# do things after we process inputs
-		call("_after_process_inputs")
+		if self.has_method("_after_process_inputs"):
+			call("_after_process_inputs")
 		
 		# send processed input back to client ?????????? TODO: this, later lol
 		
