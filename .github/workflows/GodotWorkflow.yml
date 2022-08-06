@@ -45,7 +45,7 @@ jobs:
     - name: Upload Server Artifact
       uses: actions/upload-artifact@v3
       with:
-        name: Windows Desktop.zip
+        name: Windows Desktop
         path: ./Windows Desktop.zip
 
     #   # This release action has worked well for me. However, you can most likely use any release action of your choosing.
