@@ -5,10 +5,6 @@ on:
     branches:
       - main
 
-env:
-    GODOT_VERSION: 3.5
-    EXPORT_NAME: for-tomorrow
-
 jobs:
   # job id, can be anything
   export_game:
@@ -38,9 +34,9 @@ jobs:
       with:
         # Defining all the required inputs
         godot_executable_download_url: |
-          https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux_headless.64.zip
+          https://github.com/godotengine/godot/releases/download/3.5-stable/Godot_v3.5-stable_linux_headless.64.zip
         godot_export_templates_download_url: |
-          https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz
+          https://github.com/godotengine/godot/releases/download/3.5-stable/Godot_v3.5-stable_export_templates.tpz
         relative_project_path: ./
         archive_output: true
     - name: Setup
