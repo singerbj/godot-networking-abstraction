@@ -43,9 +43,9 @@ jobs:
         ls -al ./
 
     - name: Upload Server Artifact
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v3
       with:
-        name: godot-networking-abstraction
+        name: Windows Desktop.zip
         path: ./Windows Desktop.zip
 
     #   # This release action has worked well for me. However, you can most likely use any release action of your choosing.
