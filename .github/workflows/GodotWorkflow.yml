@@ -1,36 +1,35 @@
-# This is a basic workflow to help you get started with Actions
-
-name: CI
-
-# Controls when the action will run.
+name: "export"
 on:
-    # Triggers the workflow on push or pull request events but only for the master branch
-    push:
-        branches: [main]
-    pull_request:
-        branches: [main]
-
-    # Allows you to run this workflow manually from the Actions tab
-    workflow_dispatch:
+  workflow_dispatch:
+  push:
+    paths:
+      - "**.gd"
+      - "**.tscn"
+      - "**.import"
+      - "**.tres"
+      - "**.ttf"
+      - "**.yml"
+    branches:
+      - main
 
 env:
-    GODOT_VERSION: 3.5
-    EXPORT_NAME: godot-network-abstraction
+  GODOT_VERSION: 3.5
+  RELEASE: rc
+  NAME: ${{ github.event.repository.name }}
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-    export-windows:
-        name: Windows Export
-        runs-on: ubuntu-latest
-        container:
-            image: ghcr.io/theorioli/godot-ci:3.5.rc6
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v1
-            - name: Build
-              uses: bend-n/godot-actions/.github/actions/export-windows@main
-            - name: Upload Artifact
-              uses: actions/upload-artifact@v1
-              with:
-                name: windows-client
-                path: ./build/windows/
+  export:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/bend-n/godot-2d:3.5.rc
+    name: ${{ matrix.name }}
+    strategy:
+      matrix:
+        include:
+          - name: Windows export
+            platform: windows
+
+    steps:
+      - name: Build (Windows)
+        if: matrix.platform == 'windows'
+        uses: bend-n/godot-actions/.github/actions/export-windows@main
