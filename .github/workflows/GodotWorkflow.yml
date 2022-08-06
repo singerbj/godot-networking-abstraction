@@ -46,7 +46,7 @@ jobs:
       uses: actions/upload-artifact@v1
       with:
         name: godot-networking-abstraction
-        path: ./*.zip
+        path: ./Windows Desktop.zip
 
     #   # This release action has worked well for me. However, you can most likely use any release action of your choosing.
     #   # https://github.com/softprops/action-gh-release
