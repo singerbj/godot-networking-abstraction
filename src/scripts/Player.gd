@@ -3,14 +3,25 @@ extends KinematicBody
 const is_player : bool = true;
 
 const SPEED : float = 8.0
-const GRAVITY : float = -9.8
+const ACCELERATION_DEFAULT : float = 7.0
+const ACCELERATION_AIR : float = 1.0
+const GRAVITY : float = 25.0
 const DEFAULT_JUMP_INERTIA : float = 200.0
 const SENS_MULTIPLIER : float = 0.03
 const STARTING_HEAD_ANGLE : float = 0.0
+const JUMP_FORCE : float = 10.0
 
 var is_local_player : bool = false
 var head_nod_angle : float = STARTING_HEAD_ANGLE
-var velocity = Vector3.ZERO
+#var velocity = Vector3.ZERO
+
+onready var accel : float = ACCELERATION_DEFAULT
+var mouse_sense = 0.1
+var snap
+var direction = Vector3()
+var velocity = Vector3()
+var gravity_vec = Vector3()
+var movement = Vector3()
 
 var last_transform : Transform
 var last_rotation : Vector3
@@ -62,22 +73,29 @@ func move(input : NetworkInput, local_delta : float):
 			move_vector += -global_transform.basis.x
 		if button == "m_right":
 			move_vector += global_transform.basis.x
-		if button == "jump" && is_on_floor():
+		if button == "jump": # && is_on_floor():
 			jump = true
-		
-	move_vector = move_vector.normalized()
 	
-	var desired_velocity: Vector3 = move_vector * SPEED
-	velocity.x = desired_velocity.x
-	velocity.z = desired_velocity.z
-	if jump:
-		velocity.y = DEFAULT_JUMP_INERTIA
+	#jumping and gravity
+	if is_on_floor():
+		snap = -get_floor_normal()
+		accel = ACCELERATION_DEFAULT
+		gravity_vec = Vector3.ZERO
 	else:
-		velocity.y = GRAVITY
+		snap = Vector3.DOWN
+		accel = ACCELERATION_AIR
+		gravity_vec += Vector3.DOWN * GRAVITY * local_delta
+		
+	if jump and is_on_floor():
+		snap = Vector3.ZERO
+		gravity_vec = Vector3.UP * JUMP_FORCE
 	
-	velocity = velocity * (input.delta / local_delta)
+	# make it move
+	velocity = velocity.linear_interpolate(move_vector * SPEED, accel * local_delta)
+	movement = velocity + gravity_vec
+	movement = movement * (input.delta / local_delta)
 	
-	velocity = move_and_slide_with_snap(velocity, Vector3(0, -0.3, 0), Vector3.UP, true)
+	move_and_slide_with_snap(movement, snap, Vector3.UP)
 	
 func update_from_server(transform_from_server : Transform, rotation_from_server : Vector3, head_nod_angle_from_server : float):
 	transform = transform_from_server
