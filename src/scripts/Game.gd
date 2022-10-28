@@ -9,12 +9,14 @@ var reconciliations : int = 0
 const RECONCILIATION_TOLERANCE : float = 3.0
 const RECONCILIATION_FACTOR : float = 0.125
 
+const WEAPON_DAMAGE : float = 10.0 #TODO: Move this to a weapon manager thingy
+
 func _ready():
 	var args = Array(OS.get_cmdline_args())
 	var start_server = "server" in args
 	var start_client = "client" in args
 	if !start_server && !start_client: # TODO: put these in a config file that is in gitignore?
-		start_server = true
+		start_server = false
 		start_client = true
 
 	if start_server:
@@ -40,7 +42,12 @@ func _physics_process(delta):
 			$Camera.make_current()
 		
 func _process(delta):
-	$UI/Label.text = "[FPS: %s] [Reconciliations: %s] [Server Clock: %s]" % [str(Engine.get_frames_per_second()), reconciliations, server_snapshot_manager.get_server_time()]
+	if local_peer_id in players:
+		$UI/Label.text = "[FPS: %s] [Reconciliations: %s] [Server Clock: %s] [Player Health: %s]" % [
+			str(Engine.get_frames_per_second()), 
+			reconciliations, server_snapshot_manager.get_server_time(),
+			players[local_peer_id].health
+		]
 	
 	if local_peer_id != null && local_peer_id in players:
 		players[local_peer_id].rotate_player_with_input(mouse_motion)
@@ -67,6 +74,7 @@ func _on_server_creation_error(error):
 func _on_peer_connected(peer_id : int):
 	if peer_id != local_peer_id:
 		var peer_player = Player.instance()
+		peer_player.player_id = peer_id
 		players[peer_id] = peer_player
 		add_child(peer_player)
 	
@@ -85,42 +93,11 @@ func _process_inputs(delta : float, peer_id : int, inputs : Array):
 				if "rotation" in input["data"] && "head_nod_angle" in input["data"]:
 					players[peer_id].rotate_player_with_values(input["data"]["rotation"], input["data"]["head_nod_angle"])
 				players[peer_id].move(input, delta)
-				
-			if "shooting" in input["data"]:
-				var new_shot = ShotEntity.new({
-					"id": "s" + str(ShotManager.get_new_shot_id()),
-					"peer_id": peer_id, 
-					"time": input["time"],
-					"origin": input["data"]["shooting_origin"],
-					"normal": input["data"]["shooting_normal"]
-				})
-				
-				var interpolated_snapshot : InterpolatedSnapshot = _get_interpolated_server_state(new_shot.time)
-				
-				# Update the server state of all entities here for entity interpolation
-				var original_transforms = {}
-				for peer_id in players:
-					if peer_id != new_shot.peer_id:
-						original_transforms[peer_id] = players[peer_id].transform
-						
-				if interpolated_snapshot:
-					for peer_id in players:
-						if peer_id != new_shot.peer_id:
-							players[peer_id].transform = interpolated_snapshot.state[peer_id].transform
-							# Draw line wgere the players move to
-							DrawLine3d.draw_line_3d((players[peer_id].transform.origin - Vector3(0, 2, 0)), (players[peer_id].transform.origin + Vector3(0, 2, 0)), Color.limegreen)
-				else:
-					print("No interpolated snapshot to time travel to")
-					
-				new_shot = ShotManager.fire_server_shot(new_shot, [players[peer_id]])
-				
-				if new_shot.peer_id == local_peer_id && new_shot.hit:
-					$UI.show_hitmarker()
-				
-				# Reset server state to what it was before entity interpolation
-				for peer_id in players:
-					if peer_id != new_shot.peer_id:
-						players[peer_id].transform = original_transforms[peer_id]
+			
+			if "hit" in input["data"]:
+				var hit = input["data"]["hit"]
+				if hit in players:
+					players[hit].take_damage(WEAPON_DAMAGE)
 				
 				
 func _after_process_inputs():
@@ -140,6 +117,7 @@ func _on_confirm_connection(peer_id : int):
 	local_peer_id = peer_id
 	var local_player = Player.instance()
 	local_player.is_local_player = true
+	local_player.player_id = local_peer_id
 	players[local_peer_id] = local_player
 	add_child(local_player)
 	local_player.set_camera_active()
@@ -156,16 +134,17 @@ func _on_snapshot_recieved(snapshot : Snapshot):
 func _on_update_local_entity(delta : float, entity : Entity):
 	if entity is PlayerEntity:
 		if local_peer_id != null:
-			if !entity.id in players:
-				var peer_player = Player.instance()
-				players[entity.id] = peer_player
-				add_child(peer_player)
-			players[entity.id].update_from_server(entity.transform, entity.rotation, entity.head_nod_angle)
+			if !entity.id in players:				
+				_on_peer_connected(entity.id)
+			if local_peer_id == entity.id:
+				players[entity.id].update_local_player_from_server(entity)
+			else:
+				players[entity.id].update_peer_player_from_server(entity)
 	if entity is ShotEntity:
 			if entity.peer_id != local_peer_id:
 				ShotManager.fire_client_shot(entity, true)
 	
-func _on_peer_disconnect_reported	(peer_id):
+func _on_peer_disconnect_reported(peer_id):
 	if peer_id in players:
 		players[peer_id].queue_free()
 		players.erase(peer_id)
@@ -197,16 +176,20 @@ func _on_input_data_requested() -> Dictionary:
 		data["shooting_normal"] = shooting_normal
 		$UI/ShootLabel.text = "Shooting!"
 #		$UI/ShootDataLabel.text = str(shooting_origin) + "\n" + str(shooting_normal)
+
+		var new_shot = ShotEntity.new({
+			"id": "s" + str(ShotManager.get_new_shot_id()),
+			"peer_id": local_peer_id, 
+			"time": 0, # not relevant for the local simulation of the shot
+			"origin": data["shooting_origin"],
+			"normal": data["shooting_normal"],
+			"hit": -1,
+		})
 		
-		if !_local_peer_is_server():
-			var new_shot = ShotEntity.new({
-				"id": "s" + str(ShotManager.get_new_shot_id()),
-				"peer_id": local_peer_id, 
-				"time": 0, # not relevant for the local simulation of the shot
-				"origin": data["shooting_origin"],
-				"normal": data["shooting_normal"]
-			})
-			ShotManager.fire_client_shot(new_shot)
+		new_shot = ShotManager.fire_client_detection_shot(new_shot, [players[local_peer_id]])
+		data["hit"] = new_shot.hit
+		if new_shot.hit != -1:
+			$UI.show_hitmarker()
 	else:
 		$UI/ShootLabel.text = ""
 	
@@ -252,7 +235,8 @@ func _on_request_entities() -> Dictionary:
 			"transform": players[peer_id].transform, 
 			"velocity": players[peer_id].velocity, 
 			"rotation": players[peer_id].rotation,
-			"head_nod_angle": players[peer_id].head_nod_angle 
+			"head_nod_angle": players[peer_id].head_nod_angle,
+			"health": players[peer_id].health,
 		})
 		entities[player_entity.id] = player_entity
 		

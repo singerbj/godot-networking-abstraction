@@ -1,6 +1,6 @@
 extends KinematicBody
 
-const is_player : bool = true;
+var player_id : int
 
 const SPEED : float = 8.0
 const ACCELERATION_DEFAULT : float = 7.0
@@ -10,6 +10,7 @@ const DEFAULT_JUMP_INERTIA : float = 200.0
 const SENS_MULTIPLIER : float = 0.03
 const STARTING_HEAD_ANGLE : float = 0.0
 const JUMP_FORCE : float = 10.0
+const MAX_HEALTH : float = 10000.0
 
 const MAX_BOT_MOVE_TIME = 60
 var is_bot = false
@@ -34,6 +35,8 @@ var last_head_nod_angle : float
 var current_transform : Transform
 var current_rotation : Vector3
 var current_head_nod_angle : float
+
+var health : float = MAX_HEALTH
 
 func _enter_tree():
 	last_transform = transform
@@ -115,12 +118,18 @@ func move(input : NetworkInput, local_delta : float):
 	
 	move_and_slide_with_snap(movement, snap, Vector3.UP)
 	
-func update_from_server(transform_from_server : Transform, rotation_from_server : Vector3, head_nod_angle_from_server : float):
-	transform = transform_from_server
-	rotation = rotation_from_server
-	head_nod_angle = head_nod_angle_from_server
+func update_local_player_from_server(entity : PlayerEntity):
+	health = entity.health
+	$HealthBar/Viewport/TextureProgress.value = (health / MAX_HEALTH) * 400
+		
+func update_peer_player_from_server(entity : PlayerEntity):
+	transform = entity.transform
+	rotation = entity.rotation
+	head_nod_angle = entity.head_nod_angle
 	if $Camera != null:
-		$Camera.rotation_degrees.x = head_nod_angle_from_server
+		$Camera.rotation_degrees.x = entity.head_nod_angle
+		
+	update_local_player_from_server(entity)
 
 func get_camera() -> Node:
 	return $Camera
@@ -128,4 +137,8 @@ func get_camera() -> Node:
 func set_camera_active():
 	if $Camera != null:
 		$Camera.make_current()
+		
+func take_damage(damage : float):
+	health -= damage
+	
 	

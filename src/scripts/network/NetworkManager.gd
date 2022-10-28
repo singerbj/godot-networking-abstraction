@@ -298,7 +298,7 @@ func _physics_process(delta):
 			print("No snapshot found. Skipping interpolation...")
 		else:
 			for entity in interpolated_snapshot.state.values():
-				if !_local_peer_is_server() && entity.id != _local_peer_id:
+				if !_local_peer_is_server():
 					call("_on_update_local_entity", delta, entity)
 					
 #		# gather inputs and send them to the server

@@ -1,6 +1,7 @@
-[gd_scene load_steps=8 format=2]
+[gd_scene load_steps=9 format=2]
 
 [ext_resource path="res://src/scripts/Player.gd" type="Script" id=1]
+[ext_resource path="res://images/bar.png" type="Texture" id=2]
 
 [sub_resource type="CapsuleMesh" id=6]
 mid_height = 2.0
@@ -45,3 +46,23 @@ transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.37757, 2.13163e-13 )
 transform = Transform( 0.707107, -0.707107, 0, 0.707107, 0.707107, 0, 0, 0, 1, 0, -0.3, -1.25 )
 mesh = SubResource( 8 )
 material/0 = SubResource( 9 )
+
+[node name="HealthBar" type="Sprite3D" parent="."]
+transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.9204, 0 )
+billboard = 1
+texture = ExtResource( 2 )
+
+[node name="Viewport" type="Viewport" parent="HealthBar"]
+size = Vector2( 200, 26 )
+transparent_bg = true
+hdr = false
+usage = 0
+render_target_v_flip = true
+
+[node name="TextureProgress" type="TextureProgress" parent="HealthBar/Viewport"]
+margin_right = 200.0
+margin_bottom = 40.0
+texture_under = ExtResource( 2 )
+texture_over = ExtResource( 2 )
+texture_progress = ExtResource( 2 )
+tint_under = Color( 0.87451, 0.0588235, 0.0588235, 1 )

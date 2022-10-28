@@ -8,7 +8,7 @@ var peer_id : int
 var time : int
 var origin : Vector3
 var normal : Vector3
-var hit : bool = false
+var hit : int
 var color : Color = Color.white
 
 func _init(attributes : Dictionary):
@@ -31,7 +31,6 @@ func serialize():
 		"origin": origin,
 		"normal": normal,
 		"hit": hit,
-		"color": color,
 	}
 
 func deserialize(serialized_snapshot : Dictionary):
