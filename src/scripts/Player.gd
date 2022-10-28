@@ -11,6 +11,11 @@ const SENS_MULTIPLIER : float = 0.03
 const STARTING_HEAD_ANGLE : float = 0.0
 const JUMP_FORCE : float = 10.0
 
+const MAX_BOT_MOVE_TIME = 60
+var is_bot = false
+var bot_move_time = 0
+var bot_move_key = "m_left"
+
 var is_local_player : bool = false
 var head_nod_angle : float = STARTING_HEAD_ANGLE
 #var velocity = Vector3.ZERO
@@ -64,7 +69,20 @@ func move(input : NetworkInput, local_delta : float):
 	
 	var move_vector = Vector3.ZERO
 	var jump = false
-	for button in input["data"].keys():
+	
+	var input_data = input["data"]
+	if self.is_bot:
+		bot_move_time += 1
+		if bot_move_time > MAX_BOT_MOVE_TIME:
+			bot_move_time = 0
+			if bot_move_key == "m_left":
+				bot_move_key = "m_right"
+			else:
+				bot_move_key = "m_left"
+		input_data[bot_move_key] = true
+			
+	
+	for button in input_data.keys():
 		if button == "m_forward":
 			move_vector += -global_transform.basis.z
 		if button == "m_backward":

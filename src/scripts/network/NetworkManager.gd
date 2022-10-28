@@ -21,9 +21,6 @@ var client_input_manager : NetworkInputManager = NetworkInputManager.new(_networ
 var server_snapshot_manager : SnapshotInterpolationManager = SnapshotInterpolationManager.new("Server", _network_config, _network_config.DEFAULT_AUTO_CORRECT_TIME_SERVER_OFFSET)
 var client_snapshot_manager : SnapshotInterpolationManager = SnapshotInterpolationManager.new("Client", _network_config, _network_config.DEFAULT_AUTO_CORRECT_TIME_CLIENT_OFFSET)
 
-var current_server_state : Snapshot
-var current_client_state : Snapshot
-
 ########################################################
 ### Implementation verification ########################
 ########################################################
@@ -243,13 +240,14 @@ func _broadcast_message(message : String, sender : int = 0, chat_mode : String =
 ####################################################
 	
 func _get_interpolated_server_state(time : int) -> InterpolatedSnapshot:
-	return _interpolate_state(time, server_snapshot_manager)
+#	return _interpolate_state(time, server_snapshot_manager)
+	return server_snapshot_manager.calculate_interpolation_with_time(_entity_classes, time)
 	
-func _get_interpolated_client_state(time : int) -> InterpolatedSnapshot:
-	return _interpolate_state(time, client_snapshot_manager)
+#func _get_interpolated_client_state(time : int) -> InterpolatedSnapshot:
+#	return _interpolate_state(time, client_snapshot_manager)
 	
-func _interpolate_state(time : int, manager : SnapshotInterpolationManager) -> InterpolatedSnapshot:
-	return manager.calculate_interpolation_with_time(_entity_classes, time)
+#func _interpolate_state(time : int, manager : SnapshotInterpolationManager) -> InterpolatedSnapshot:
+#	return manager
 	
 ####################################################
 ### Processing functionality #######################
@@ -295,7 +293,7 @@ func _physics_process(delta):
 	# Client processing
 	if _client_connected:
 		# server reconcile aka interpolate/extrapolate other entities
-		var interpolated_snapshot = server_snapshot_manager.calculate_interpolation(_entity_classes)
+		var interpolated_snapshot = server_snapshot_manager.calculate_client_adjusted_interpolation(_entity_classes)
 		if interpolated_snapshot == null:
 			print("No snapshot found. Skipping interpolation...")
 		else:
@@ -318,7 +316,7 @@ func _physics_process(delta):
 			client_snapshot_manager.add_snapshot(snapshot)
 			
 			var latest_server_snapshot : Snapshot = server_snapshot_manager.vault.get_latest_snapshot()
-			var closest_client_snapshot : InterpolatedSnapshot = client_snapshot_manager.calculate_interpolation(_entity_classes)
+			var closest_client_snapshot : InterpolatedSnapshot = server_snapshot_manager.calculate_client_adjusted_interpolation(_entity_classes)
 			if latest_server_snapshot != null && closest_client_snapshot != null && latest_server_snapshot.is_valid():
 				call("_on_server_reconcile", delta, latest_server_snapshot, closest_client_snapshot, client_input_manager.get_input_buffer(_local_peer_id)) # TODO: left off here <================================================
 	

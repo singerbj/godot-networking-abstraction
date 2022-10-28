@@ -40,7 +40,7 @@ func _physics_process(delta):
 			$Camera.make_current()
 		
 func _process(delta):
-	$UI/Label.text = "[FPS: %s] [Reconciliations: %s]" % [str(Engine.get_frames_per_second()), reconciliations]
+	$UI/Label.text = "[FPS: %s] [Reconciliations: %s] [Server Clock: %s]" % [str(Engine.get_frames_per_second()), reconciliations, server_snapshot_manager.get_server_time()]
 	
 	if local_peer_id != null && local_peer_id in players:
 		players[local_peer_id].rotate_player_with_input(mouse_motion)
@@ -98,22 +98,29 @@ func _process_inputs(delta : float, peer_id : int, inputs : Array):
 				var interpolated_snapshot : InterpolatedSnapshot = _get_interpolated_server_state(new_shot.time)
 				
 				# Update the server state of all entities here for entity interpolation
-				var original_values = players.duplicate()
+				var original_transforms = {}
+				for peer_id in players:
+					if peer_id != new_shot.peer_id:
+						original_transforms[peer_id] = players[peer_id].transform
+						
 				if interpolated_snapshot:
 					for peer_id in players:
 						if peer_id != new_shot.peer_id:
 							players[peer_id].transform = interpolated_snapshot.state[peer_id].transform
-		
+							# Draw line wgere the players move to
+							DrawLine3d.draw_line_3d((players[peer_id].transform.origin - Vector3(0, 2, 0)), (players[peer_id].transform.origin + Vector3(0, 2, 0)), Color.limegreen)
+				else:
+					print("No interpolated snapshot to time travel to")
+					
 				new_shot = ShotManager.fire_server_shot(new_shot, [players[peer_id]])
 				
 				if new_shot.peer_id == local_peer_id && new_shot.hit:
 					$UI.show_hitmarker()
 				
 				# Reset server state to what it was before entity interpolation
-				if interpolated_snapshot:
-					for peer_id in players:
-						if peer_id != new_shot.peer_id:
-							players[peer_id].transform = original_values[peer_id].transform
+				for peer_id in players:
+					if peer_id != new_shot.peer_id:
+						players[peer_id].transform = original_transforms[peer_id]
 				
 				
 func _after_process_inputs():
@@ -136,6 +143,9 @@ func _on_confirm_connection(peer_id : int):
 	players[local_peer_id] = local_player
 	add_child(local_player)
 	local_player.set_camera_active()
+	if peer_id == 0:
+		local_player.is_bot = true
+	
 	
 func _on_snapshot_recieved(snapshot : Snapshot):
 	for entity in snapshot.state.values():
@@ -199,7 +209,7 @@ func _on_input_data_requested() -> Dictionary:
 			ShotManager.fire_client_shot(new_shot)
 	else:
 		$UI/ShootLabel.text = ""
-		
+	
 	return data
 		
 func _on_client_side_predict(delta : float, input : NetworkInput):
