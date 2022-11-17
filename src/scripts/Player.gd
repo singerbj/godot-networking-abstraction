@@ -10,7 +10,7 @@ const DEFAULT_JUMP_INERTIA : float = 200.0
 const SENS_MULTIPLIER : float = 0.03
 const STARTING_HEAD_ANGLE : float = 0.0
 const JUMP_FORCE : float = 10.0
-const MAX_HEALTH : float = 10000.0
+const MAX_HEALTH : float = 1000.0
 
 const MAX_BOT_MOVE_TIME = 60
 var is_bot = false
@@ -45,6 +45,9 @@ func _enter_tree():
 	
 	if is_local_player:
 		set_physics_interpolation_mode(Node.PHYSICS_INTERPOLATION_MODE_OFF)
+		
+func _process(delta):
+	$HealthBar/Viewport/TextureProgress.value = (health / MAX_HEALTH) * 100
 
 func rotate_player_with_input(mouse_motion : Vector2):
 	last_rotation = rotation
@@ -120,7 +123,6 @@ func move(input : NetworkInput, local_delta : float):
 	
 func update_local_player_from_server(entity : PlayerEntity):
 	health = entity.health
-	$HealthBar/Viewport/TextureProgress.value = (health / MAX_HEALTH) * 400
 		
 func update_peer_player_from_server(entity : PlayerEntity):
 	transform = entity.transform
@@ -130,15 +132,15 @@ func update_peer_player_from_server(entity : PlayerEntity):
 		$Camera.rotation_degrees.x = entity.head_nod_angle
 		
 	update_local_player_from_server(entity)
-
+		
+func take_damage(damage : float):
+	health -= damage
+	
 func get_camera() -> Node:
 	return $Camera
 
 func set_camera_active():
 	if $Camera != null:
 		$Camera.make_current()
-		
-func take_damage(damage : float):
-	health -= damage
 	
 	

@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=2]
+[gd_scene load_steps=10 format=2]
 
 [ext_resource path="res://src/scripts/Player.gd" type="Script" id=1]
 [ext_resource path="res://images/bar.png" type="Texture" id=2]
@@ -20,6 +20,9 @@ size = Vector3( 0.2, 0.2, 1.65 )
 
 [sub_resource type="SpatialMaterial" id=9]
 albedo_color = Color( 0, 0.6, 0.698039, 1 )
+
+[sub_resource type="ViewportTexture" id=11]
+viewport_path = NodePath("HealthBar/Viewport")
 
 [node name="KinematicBody" type="KinematicBody"]
 transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 10, 0 )
@@ -50,7 +53,7 @@ material/0 = SubResource( 9 )
 [node name="HealthBar" type="Sprite3D" parent="."]
 transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.9204, 0 )
 billboard = 1
-texture = ExtResource( 2 )
+texture = SubResource( 11 )
 
 [node name="Viewport" type="Viewport" parent="HealthBar"]
 size = Vector2( 200, 26 )
@@ -62,7 +65,6 @@ render_target_v_flip = true
 [node name="TextureProgress" type="TextureProgress" parent="HealthBar/Viewport"]
 margin_right = 200.0
 margin_bottom = 40.0
-texture_under = ExtResource( 2 )
-texture_over = ExtResource( 2 )
+value = 100.0
 texture_progress = ExtResource( 2 )
 tint_under = Color( 0.87451, 0.0588235, 0.0588235, 1 )

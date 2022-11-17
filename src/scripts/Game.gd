@@ -124,7 +124,6 @@ func _on_confirm_connection(peer_id : int):
 	if peer_id == 0:
 		local_player.is_bot = true
 	
-	
 func _on_snapshot_recieved(snapshot : Snapshot):
 	for entity in snapshot.state.values():
 		if entity is ShotEntity:

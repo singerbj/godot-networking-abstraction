@@ -14,33 +14,48 @@ var rotation : Vector3
 var head_nod_angle : float
 var health : float
 
-func _init(attributes : Dictionary):
-	self.id = attributes.id
-	self.transform = attributes.transform
-	self.velocity = attributes.velocity
-	self.rotation = attributes.rotation
-	self.head_nod_angle = attributes.head_nod_angle
-	self.health = attributes.health
+func _init(attributes):
+	var attr_dict : Dictionary
+	if attributes is Dictionary:
+		attr_dict = attributes
+	else:
+		attr_dict = deserialize(attributes)
+	
+	self.id = attr_dict.id
+	self.transform = attr_dict.transform
+	self.velocity = attr_dict.velocity
+	self.rotation = attr_dict.rotation
+	self.head_nod_angle = attr_dict.head_nod_angle
+	self.health = attr_dict.health
 
 static func get_class_name():
 	return "PlayerEntity"
 
 func serialize():
-	return {
-		"id": id,
-		"transform": transform,
-		"velocity": velocity,
-		"rotation": rotation,
-		"head_nod_angle": head_nod_angle,
-		"health": health
-	}
+	var buffer := StreamPeerBuffer.new()
+	buffer.resize(16)
+	
+	buffer.put_u64(id)
+	NetworkUtil.serialize_transform(buffer, transform)
+	NetworkUtil.serialize_vector3(buffer, velocity)
+	NetworkUtil.serialize_vector3(buffer, rotation)
+	buffer.put_float(head_nod_angle)
+	buffer.put_float(health)
+	
+	buffer.resize(buffer.get_position())
+	return buffer.data_array
 
-func deserialize(serialized_snapshot : Dictionary):
-	return get_script().new({
-		"id": serialized_snapshot["id"], 
-		"transform": serialized_snapshot["transform"], 
-		"velocity": serialized_snapshot["velocity"], 
-		"rotation": serialized_snapshot["rotation"], 
-		"head_nod_angle": serialized_snapshot["head_nod_angle"],
-		"health": serialized_snapshot["health"],
-	})
+func deserialize(serialized : PoolByteArray):
+	var buffer := StreamPeerBuffer.new()
+	buffer.put_data(serialized)
+	buffer.seek(0)
+	
+#	return get_script().new({
+	return {
+		"id": buffer.get_u64(),
+		"transform": NetworkUtil.deserialize_transform(buffer),
+		"velocity": NetworkUtil.deserialize_vector3(buffer),
+		"rotation": NetworkUtil.deserialize_vector3(buffer),
+		"head_nod_angle": buffer.get_float(),
+		"health": buffer.get_float(),
+	}
