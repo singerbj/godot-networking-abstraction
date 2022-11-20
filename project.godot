@@ -14,6 +14,11 @@ _global_script_classes=[ {
 "language": "GDScript",
 "path": "res://src/scripts/network/types/Entity.gd"
 }, {
+"base": "NetworkInput",
+"class": "GameNetworkInput",
+"language": "GDScript",
+"path": "res://src/scripts/GameNetworkInput.gd"
+}, {
 "base": "Node",
 "class": "InterpolatedSnapshot",
 "language": "GDScript",
@@ -81,6 +86,7 @@ _global_script_classes=[ {
 } ]
 _global_script_class_icons={
 "Entity": "",
+"GameNetworkInput": "",
 "InterpolatedSnapshot": "",
 "LineDrawer": "",
 "NetworkConfig": "",

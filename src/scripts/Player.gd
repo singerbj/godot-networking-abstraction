@@ -76,7 +76,6 @@ func move(input : NetworkInput, local_delta : float):
 	var move_vector = Vector3.ZERO
 	var jump = false
 	
-	var input_data = input["data"]
 	if self.is_bot:
 		bot_move_time += 1
 		if bot_move_time > MAX_BOT_MOVE_TIME:
@@ -85,20 +84,18 @@ func move(input : NetworkInput, local_delta : float):
 				bot_move_key = "m_right"
 			else:
 				bot_move_key = "m_left"
-		input_data[bot_move_key] = true
-			
+		input[bot_move_key] = true
 	
-	for button in input_data.keys():
-		if button == "m_forward":
-			move_vector += -global_transform.basis.z
-		if button == "m_backward":
-			move_vector += global_transform.basis.z
-		if button == "m_left":
-			move_vector += -global_transform.basis.x
-		if button == "m_right":
-			move_vector += global_transform.basis.x
-		if button == "jump": # && is_on_floor():
-			jump = true
+	if input["m_forward"]:
+		move_vector += -global_transform.basis.z
+	if input["m_backward"]:
+		move_vector += global_transform.basis.z
+	if input["m_left"]:
+		move_vector += -global_transform.basis.x
+	if input["m_right"]:
+		move_vector += global_transform.basis.x
+	if input["jump"]: # && is_on_floor():
+		jump = true
 	
 	#jumping and gravity
 	if is_on_floor():
@@ -131,7 +128,7 @@ func update_peer_player_from_server(entity : PlayerEntity):
 	if $Camera != null:
 		$Camera.rotation_degrees.x = entity.head_nod_angle
 		
-	update_local_player_from_server(entity)
+	health = entity.health
 		
 func take_damage(damage : float):
 	health -= damage

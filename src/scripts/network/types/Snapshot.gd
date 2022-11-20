@@ -16,6 +16,8 @@ func _init(_id : String = "", _time : int = -1, _state : Dictionary = {}, _last_
 func is_valid():
 	return time != -1
 	
+# TODO: These serialize and deserialize state functions could be heavily optimized - not sure how to
+#	make them work with unknown length array values
 func serialize():
 	var serialized_state = []
 	for entity in state.values():
@@ -35,5 +37,10 @@ func deserialize(entity_classes : Dictionary, serialized_snapshot : Dictionary):
 	for serialized_entity in serialized_snapshot["state"]:
 		var deserialized_entity : Entity = entity_classes[serialized_entity["name"]].new(serialized_entity["data"])
 		deserialized_state[deserialized_entity["id"]] = deserialized_entity
-	return get_script().new(serialized_snapshot["id"], serialized_snapshot["time"], deserialized_state, serialized_snapshot["last_processed_input_ids"])
+	return get_script().new(
+		serialized_snapshot["id"], 
+		serialized_snapshot["time"], 
+		deserialized_state, 
+		serialized_snapshot["last_processed_input_ids"]
+	)
 	

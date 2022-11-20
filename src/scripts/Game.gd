@@ -16,7 +16,7 @@ func _ready():
 	var start_server = "server" in args
 	var start_client = "client" in args
 	if !start_server && !start_client: # TODO: put these in a config file that is in gitignore?
-		start_server = false
+		start_server = true
 		start_client = true
 
 	if start_server:
@@ -90,12 +90,12 @@ func _process_inputs(delta : float, peer_id : int, inputs : Array):
 	for input in inputs:
 		if peer_id in players:
 			if !_local_peer_is_server() || (_local_peer_is_server() && peer_id != local_peer_id):
-				if "rotation" in input["data"] && "head_nod_angle" in input["data"]:
-					players[peer_id].rotate_player_with_values(input["data"]["rotation"], input["data"]["head_nod_angle"])
+				if "rotation" in input && "head_nod_angle" in input && input["rotation"] != null && input["head_nod_angle"] != null:
+					players[peer_id].rotate_player_with_values(input["rotation"], input["head_nod_angle"])
 				players[peer_id].move(input, delta)
 			
-			if "hit" in input["data"]:
-				var hit = input["data"]["hit"]
+			if "hit" in input:
+				var hit = input["hit"]
 				if hit in players:
 					players[hit].take_damage(WEAPON_DAMAGE)
 				
@@ -148,31 +148,31 @@ func _on_peer_disconnect_reported(peer_id):
 		players[peer_id].queue_free()
 		players.erase(peer_id)
 	
-func _on_input_data_requested() -> Dictionary:
-	var data = {}
+func _on_input_data_requested() -> NetworkInput:
+	var input = GameNetworkInput.new()
 	
 	if local_peer_id != null && local_peer_id in players:
-		data["player_id"] = local_peer_id
-		data["rotation"] = players[local_peer_id].rotation_degrees.y
-		data["head_nod_angle"] = players[local_peer_id].head_nod_angle
+		input["player_id"] = local_peer_id
+		input["rotation"] = players[local_peer_id].rotation_degrees.y
+		input["head_nod_angle"] = players[local_peer_id].head_nod_angle
 		
 	if Input.is_action_pressed("m_forward"):
-		data["m_forward"] = true
+		input["m_forward"] = true
 	if Input.is_action_pressed("m_backward"):
-		data["m_backward"] = true
+		input["m_backward"] = true
 	if Input.is_action_pressed("m_left"):
-		data["m_left"] = true
+		input["m_left"] = true
 	if Input.is_action_pressed("m_right"):
-		data["m_right"] = true
+		input["m_right"] = true
 	if Input.is_action_pressed("jump"):
-		data["jump"] = true
+		input["jump"] = true
 	if Input.is_action_pressed("shoot"):
-		data["shooting"] = true
+		input["shooting"] = true
 		var player_camera = players[local_peer_id].get_camera()
 		var shooting_origin = player_camera.project_ray_origin(Vector2(get_viewport().size.x / 2, get_viewport().size.y / 2))
 		var shooting_normal = player_camera.project_ray_normal(Vector2(get_viewport().size.x / 2, get_viewport().size.y / 2))
-		data["shooting_origin"] = shooting_origin
-		data["shooting_normal"] = shooting_normal
+		input["shooting_origin"] = shooting_origin
+		input["shooting_normal"] = shooting_normal
 		$UI/ShootLabel.text = "Shooting!"
 #		$UI/ShootDataLabel.text = str(shooting_origin) + "\n" + str(shooting_normal)
 
@@ -180,19 +180,19 @@ func _on_input_data_requested() -> Dictionary:
 			"id": "s" + str(ShotManager.get_new_shot_id()),
 			"peer_id": local_peer_id, 
 			"time": 0, # not relevant for the local simulation of the shot
-			"origin": data["shooting_origin"],
-			"normal": data["shooting_normal"],
+			"origin": input["shooting_origin"],
+			"normal": input["shooting_normal"],
 			"hit": -1,
 		})
 		
 		new_shot = ShotManager.fire_client_detection_shot(new_shot, [players[local_peer_id]])
-		data["hit"] = new_shot.hit
+		input["hit"] = new_shot.hit
 		if new_shot.hit != -1:
 			$UI.show_hitmarker()
 	else:
 		$UI/ShootLabel.text = ""
 	
-	return data
+	return input
 		
 func _on_client_side_predict(delta : float, input : NetworkInput):
 	if local_peer_id in players:
@@ -225,6 +225,9 @@ func _on_message_received_from_server():
 	
 func _on_request_entity_classes() -> Array:
 	return [PlayerEntity, ShotEntity]
+	
+func _on_request_network_input_class():
+	return GameNetworkInput
 	
 func _on_request_entities() -> Dictionary:
 	var entities = {}

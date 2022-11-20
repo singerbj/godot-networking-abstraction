@@ -52,10 +52,10 @@ static func serialize_vector3(buffer : StreamPeerBuffer, vector : Vector3) -> vo
 	buffer.put_float(vector.z)
 	
 static func serialize_color(buffer : StreamPeerBuffer, color : Color) -> void:
-	buffer.put_u64(color.r)
-	buffer.put_u64(color.g)
-	buffer.put_u64(color.b)
-	buffer.put_u64(color.a)
+	buffer.put_u32(color.r)
+	buffer.put_u32(color.g)
+	buffer.put_u32(color.b)
+	buffer.put_u32(color.a)
 	
 static func deserialize_transform(buffer : StreamPeerBuffer) -> Transform:
 	return Transform(deserialize_basis(buffer), deserialize_vector3(buffer))
@@ -70,5 +70,5 @@ static func deserialize_vector3(buffer : StreamPeerBuffer) -> Vector3:
 	return Vector3(buffer.get_float(), buffer.get_float(), buffer.get_float())
 	
 static func deserialize_color(buffer : StreamPeerBuffer) -> Color:
-	return Color(buffer.get_u64(), buffer.get_u64(), buffer.get_u64(), buffer.get_u64())
+	return Color(buffer.get_u32(), buffer.get_u32(), buffer.get_u32(), buffer.get_u32())
 		

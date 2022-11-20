@@ -33,9 +33,8 @@ static func get_class_name():
 
 func serialize():
 	var buffer := StreamPeerBuffer.new()
-	buffer.resize(16)
 	
-	buffer.put_u64(id)
+	buffer.put_u32(id)
 	NetworkUtil.serialize_transform(buffer, transform)
 	NetworkUtil.serialize_vector3(buffer, velocity)
 	NetworkUtil.serialize_vector3(buffer, rotation)
@@ -52,7 +51,7 @@ func deserialize(serialized : PoolByteArray):
 	
 #	return get_script().new({
 	return {
-		"id": buffer.get_u64(),
+		"id": buffer.get_u32(),
 		"transform": NetworkUtil.deserialize_transform(buffer),
 		"velocity": NetworkUtil.deserialize_vector3(buffer),
 		"rotation": NetworkUtil.deserialize_vector3(buffer),

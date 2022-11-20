@@ -12,6 +12,7 @@ var _physics_process_tick : int = 0
 var _process_tick : int = 0
 
 var _entity_classes : Dictionary = {}
+var _network_input_class : Object
 
 var _network_config : NetworkConfig = NetworkConfig.new()
 
@@ -27,6 +28,7 @@ var client_snapshot_manager : SnapshotInterpolationManager = SnapshotInterpolati
 
 var client_required_functions = [
 	"_on_request_entity_classes",
+	"_on_request_network_input_class",
 	"_on_connection_failed",
 	"_on_connection_succeeded",
 	"_on_confirm_connection",
@@ -42,6 +44,7 @@ var client_required_functions = [
 
 var server_required_functions = [
 	"_on_request_entity_classes",
+	"_on_request_network_input_class",
 	"_on_server_creation_error",
 	"_on_peer_connected",
 	"_on_peer_disconnected",
@@ -211,8 +214,8 @@ func _send_snapshot(snapshot : Snapshot):
 	var serialized_snapshot : Dictionary = snapshot.serialize()
 	rpc_unreliable("_on_snapshot_recieved_internal", serialized_snapshot)
 
-remote func _on_input_reported_internal(serialized_input : Dictionary):
-	var input = NetworkInput.new().deserialize(serialized_input)
+remote func _on_input_reported_internal(serialized_input : PoolByteArray):
+	var input = _network_input_class.new().deserialize(serialized_input)
 	var entity_id = get_tree().get_rpc_sender_id()
 	server_input_manager.add_input(entity_id, input)
 #	call("_on_input_reported", input)
@@ -259,6 +262,8 @@ func _ready():
 	var entity_classes : Array = call("_on_request_entity_classes")
 	for entity_class in entity_classes:
 		_entity_classes[entity_class.get_class_name()] = entity_class
+		
+	_network_input_class = call("_on_request_network_input_class")
 
 func _local_peer_is_server():
 	return _is_client && _is_server
@@ -325,8 +330,8 @@ func _process(delta):
 	# Client processing
 	if _client_connected:
 		# gather inputs and send them to the server
-		var input_data : Dictionary = call("_on_input_data_requested")
-		var input : NetworkInput = NetworkInput.new(_physics_process_tick, delta, server_snapshot_manager.get_server_time(), input_data)
+		var input : NetworkInput = call("_on_input_data_requested")
+		input._set_required_data(_physics_process_tick, delta, server_snapshot_manager.get_server_time())
 		client_input_manager.add_input(_local_peer_id, input)
 		_report_input(input)
 

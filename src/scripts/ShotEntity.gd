@@ -31,21 +31,13 @@ static func get_class_name():
 	return "ShotEntity"
 
 func serialize():
-	return {
-		"peer_id": peer_id,
-		"time": time,
-		"origin": origin,
-		"normal": normal,
-		"hit": hit,
-	}
 	var buffer := StreamPeerBuffer.new()
-	buffer.resize(16)
 	
-	buffer.put_u64(id)
-	buffer.put_u64(time)
+	buffer.put_u32(id)
+	buffer.put_u32(time)
 	NetworkUtil.serialize_vector3(buffer, origin)
 	NetworkUtil.serialize_vector3(buffer, normal)
-	buffer.put_u64(hit)
+	buffer.put_u32(hit)
 	NetworkUtil.serialize_color(buffer, color)
 	
 	buffer.resize(buffer.get_position())
@@ -56,12 +48,11 @@ func deserialize(serialized : PoolByteArray):
 	buffer.put_data(serialized)
 	buffer.seek(0)
 	
-#	return get_script().new({
-	return {
-		"peer_id": buffer.get_u64(), 
-		"time": buffer.get_u64(),
+	return get_script().new({
+		"peer_id": buffer.get_u32(), 
+		"time": buffer.get_u32(),
 		"origin": NetworkUtil.deserialize_vector3(buffer),
 		"normal": NetworkUtil.deserialize_vector3(buffer),
-		"hit": buffer.get_u64(),
+		"hit": buffer.get_u32(),
 		"color": NetworkUtil.deserialize_color(buffer),
-	}
+	})
