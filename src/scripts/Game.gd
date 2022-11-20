@@ -6,7 +6,7 @@ var Player = preload("res://src/scenes/Player.tscn")
 var mouse_motion : Vector2 = Vector2(0, 0)
 var reconciliations : int = 0
 
-const RECONCILIATION_TOLERANCE : float = 3.0
+const RECONCILIATION_TOLERANCE : float = 5.0
 const RECONCILIATION_FACTOR : float = 0.125
 
 const WEAPON_DAMAGE : float = 10.0 #TODO: Move this to a weapon manager thingy
